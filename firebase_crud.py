@@ -113,7 +113,7 @@ class App(tk.Tk):
         for i, (label, var, show) in enumerate([
             ("Account",  self.account_var, ""),
             ("Vendor",   self.vendor_var,  ""),
-            ("Password", self.pw_var,      "*"),
+            ("Password", self.pw_var,      ""),
         ]):
             ttk.Label(form, text=f"{label}:").grid(row=0, column=i*2, padx=(10,2), pady=8, sticky="e")
             ttk.Entry(form, textvariable=var, width=24, show=show).grid(
