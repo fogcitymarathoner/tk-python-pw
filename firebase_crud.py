@@ -51,6 +51,7 @@ class App(tk.Tk):
 
         self.current_uid    = None
         self.current_pushid = None
+        self.all_rows = []
 
         self._build_ui()
         self._load_users()
@@ -87,14 +88,23 @@ class App(tk.Tk):
 
         tk.Label(top, text="🔑 service account", bg="#1e1e2e", fg="#a6e3a1",
                  font=("Courier", 9)).pack(side="right", padx=8)
+        # filter bar
+        filter_bar = tk.Frame(self, bg="#1e1e2e")
+        filter_bar.pack(fill="x", padx=10, pady=(0, 4))
 
+        ttk.Label(filter_bar, text="Filter Vendor:").pack(side="left")
+        self.filter_var = tk.StringVar()
+        ttk.Entry(filter_bar, textvariable=self.filter_var, width=30).pack(side="left", padx=6)
+        ttk.Button(filter_bar, text="🔍 Search", command=self._apply_filter).pack(side="left", padx=4)
+        ttk.Button(filter_bar, text="✖ Clear", command=self._clear_filter).pack(side="left", padx=4)
         # password list
         mid = tk.Frame(self, bg="#1e1e2e")
         mid.pack(fill="both", expand=True, padx=10, pady=8)
-
-        cols = ("pushid", "account", "vendor", "pw")
+        # Table Headers
+        cols = ("pushid", "vendor", "account", "pw")
         self.tree = ttk.Treeview(mid, columns=cols, show="headings", selectmode="browse")
-        for col, w in [("pushid", 180), ("account", 210), ("vendor", 160), ("pw", 210)]:
+        # Arrange column widths
+        for col, w in [("pushid", 180), ("vendor", 160), ("account", 210), ("pw", 210)]:
             self.tree.heading(col, text=col.capitalize())
             self.tree.column(col, width=w)
 
@@ -109,10 +119,10 @@ class App(tk.Tk):
                              bg="#1e1e2e", fg="#cba6f7",
                              font=("Courier", 10, "bold"), bd=1, relief="groove")
         form.pack(fill="x", padx=10, pady=(0, 10))
-
+        # Arrange the form field labels
         for i, (label, var, show) in enumerate([
-            ("Account",  self.account_var, ""),
             ("Vendor",   self.vendor_var,  ""),
+            ("Account",  self.account_var, ""),
             ("Password", self.pw_var,      ""),
         ]):
             ttk.Label(form, text=f"{label}:").grid(row=0, column=i*2, padx=(10,2), pady=8, sticky="e")
@@ -154,13 +164,11 @@ class App(tk.Tk):
             data = fb_get(f"users/{uid}/passwords")
             self.tree.delete(*self.tree.get_children())
             if data:
+                self.all_rows = []
                 for pushid, rec in data.items():
-                    self.tree.insert("", "end", iid=pushid, values=(
-                        pushid,
-                        rec.get("account", ""),
-                        rec.get("vendor",  ""),
-                        rec.get("pw",      ""),
-                    ))
+                    row = (pushid, rec.get("vendor", ""), rec.get("account", ""), rec.get("pw", ""))
+                    self.all_rows.append(row)
+                    self.tree.insert("", "end", iid=pushid, values=row)
             self._status(f"Loaded {len(data) if data else 0} password(s).")
         except Exception as ex:
             self._status(f"Error: {ex}")
@@ -170,7 +178,8 @@ class App(tk.Tk):
         if not sel:
             return
         self.current_pushid = sel[0]
-        _, account, vendor, pw = self.tree.item(sel[0], "values")
+        # Put record data into form
+        _, vendor, account, pw = self.tree.item(sel[0], "values")
         self.account_var.set(account)
         self.vendor_var.set(vendor)
         self.pw_var.set(pw)
@@ -181,17 +190,20 @@ class App(tk.Tk):
         if not self.current_uid:
             messagebox.showwarning("No User", "Select a user first.")
             return
-        rec = {"account": self.account_var.get(),
+        # The record arrangement for record
+        rec = {"vendor":  self.vendor_var.get(),
                "pw":      self.pw_var.get(),
-               "vendor":  self.vendor_var.get()}
+               "account": self.account_var.get()}
         if not any(rec.values()):
             messagebox.showwarning("Empty", "Fill in at least one field.")
             return
         try:
             ref    = fb_push(f"users/{self.current_uid}/passwords", rec)
             pushid = ref.key
-            self.tree.insert("", "end", iid=pushid,
-                             values=(pushid, rec["account"], rec["vendor"], rec["pw"]))
+            # The record arrangement for table
+            row = (pushid, rec["vendor"], rec["account"], rec["pw"])
+            self.all_rows.append(row)
+            self.tree.insert("", "end", iid=pushid, values=row)
             self._clear_form()
             self._status(f"Added {pushid}")
         except Exception as ex:
@@ -201,13 +213,16 @@ class App(tk.Tk):
         if not self.current_pushid:
             messagebox.showwarning("No Selection", "Select a record to update.")
             return
-        rec = {"account": self.account_var.get(),
-               "pw":      self.pw_var.get(),
-               "vendor":  self.vendor_var.get()}
+        # The record arrangement for record
+        rec = {
+            "vendor": self.vendor_var.get(),
+            "pw": self.pw_var.get(),
+            "account": self.account_var.get()}
         try:
             fb_update(f"users/{self.current_uid}/passwords/{self.current_pushid}", rec)
+            # The record arrangement for table
             self.tree.item(self.current_pushid,
-                           values=(self.current_pushid, rec["account"], rec["vendor"], rec["pw"]))
+                           values=(self.current_pushid, rec["vendor"], rec["account"], rec["pw"]))
             self._status(f"Updated {self.current_pushid}")
         except Exception as ex:
             self._status(f"Error: {ex}")
@@ -226,6 +241,21 @@ class App(tk.Tk):
             self._status("Deleted.")
         except Exception as ex:
             self._status(f"Error: {ex}")
+
+    def _apply_filter(self):
+        search = self.filter_var.get().strip().lower()
+        if not search:
+            return
+        self.tree.delete(*self.tree.get_children())
+        for row in self.all_rows:
+            if search in row[1].lower():  # row[1] is vendor
+                self.tree.insert("", "end", iid=row[0], values=row)
+
+    def _clear_filter(self):
+        self.filter_var.set("")
+        self.tree.delete(*self.tree.get_children())
+        for row in self.all_rows:
+            self.tree.insert("", "end", iid=row[0], values=row)
 
     def _new_user_dialog(self):
         dlg = tk.Toplevel(self)
