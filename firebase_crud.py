@@ -266,7 +266,7 @@ class App(tk.Tk):
             "abcdefghijklmnopqrstuvwxyz"
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
             "0123456789"
-            "#!@$%^*()_=\"?.,/;:<>`{|}~-[]"
+            "#!@$%^*()_=?.,:~-[]"
         )
         pw = ''.join(secrets.choice(allowed) for _ in range(length))
         self.pw_var.set(pw)
