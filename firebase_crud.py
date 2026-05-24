@@ -13,6 +13,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import firebase_admin
 from firebase_admin import credentials, db
+import secrets
+import string
 
 SERVICE_ACCOUNT_FILE = "fogcitymarathoner-2a35f802a83d.json"
 DATABASE_URL         = "https://fogcitymarathoner-default-rtdb.firebaseio.com"
@@ -47,6 +49,7 @@ class App(tk.Tk):
         self.uid_var     = tk.StringVar()
         self.account_var = tk.StringVar()
         self.pw_var      = tk.StringVar()
+        self.pw_var_original = tk.StringVar()
         self.vendor_var  = tk.StringVar()
 
         self.current_uid    = None
@@ -97,6 +100,9 @@ class App(tk.Tk):
         ttk.Entry(filter_bar, textvariable=self.filter_var, width=30).pack(side="left", padx=6)
         ttk.Button(filter_bar, text="🔍 Search", command=self._apply_filter).pack(side="left", padx=4)
         ttk.Button(filter_bar, text="✖ Clear", command=self._clear_filter).pack(side="left", padx=4)
+        # Generate password button
+        ttk.Button(filter_bar, text="⚡ Generate Password", command=self._generate_password).pack(side="left", padx=10)
+
         # password list
         mid = tk.Frame(self, bg="#1e1e2e")
         mid.pack(fill="both", expand=True, padx=10, pady=8)
@@ -128,9 +134,11 @@ class App(tk.Tk):
             ttk.Label(form, text=f"{label}:").grid(row=0, column=i*2, padx=(10,2), pady=8, sticky="e")
             ttk.Entry(form, textvariable=var, width=24, show=show).grid(
                 row=0, column=i*2+1, padx=(0,10), pady=8)
-
+        ttk.Label(form, text="Password Original:").grid(row=1, column=0, padx=(10,2), pady=8, sticky="e")
+        ttk.Entry(form, textvariable=self.pw_var_original, width=24, show=show).grid(
+            row=1, column=1, padx=(0,10), pady=8)
         btn_frame = tk.Frame(form, bg="#1e1e2e")
-        btn_frame.grid(row=1, column=0, columnspan=6, pady=(0,8))
+        btn_frame.grid(row=2, column=0, columnspan=6, pady=(0,8))
         for text, cmd in [("➕ Add", self._add), ("💾 Update", self._update),
                           ("🗑 Delete", self._delete), ("✖ Clear", self._clear_form)]:
             ttk.Button(btn_frame, text=text, command=cmd).pack(side="left", padx=6)
@@ -183,6 +191,7 @@ class App(tk.Tk):
         self.account_var.set(account)
         self.vendor_var.set(vendor)
         self.pw_var.set(pw)
+        self.pw_var_original.set(pw)
 
     # ── CRUD ───────────────────────────────────────────────────────────────────
 
@@ -251,6 +260,18 @@ class App(tk.Tk):
             if search in row[1].lower():  # row[1] is vendor
                 self.tree.insert("", "end", iid=row[0], values=row)
 
+    def _generate_password(self):
+        length = 14
+        allowed = (
+            "abcdefghijklmnopqrstuvwxyz"
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            "0123456789"
+            "#!@$%^*()_=\"?.,/;:<>`{|}~-[]"
+        )
+        pw = ''.join(secrets.choice(allowed) for _ in range(length))
+        self.pw_var.set(pw)
+        self._status("Generated strong password.")
+
     def _clear_filter(self):
         self.filter_var.set("")
         self.tree.delete(*self.tree.get_children())
@@ -285,6 +306,7 @@ class App(tk.Tk):
     def _clear_form(self):
         self.account_var.set("")
         self.pw_var.set("")
+        self.pw_var_original.set("")
         self.vendor_var.set("")
         self.current_pushid = None
         self.tree.selection_remove(self.tree.selection())
