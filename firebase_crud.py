@@ -3,10 +3,10 @@ Firebase CRUD - users/{uid}/passwords
 Structure: users/{uid}/passwords/{pushId}/{account, pw, vendor}
 
 Requirements:
-    pip install firebase-admin
+    pip install firebase-admin python-dotenv
 
-Place your service account JSON file next to this script, or update
-SERVICE_ACCOUNT_FILE below.
+Place your service account JSON file next to this script, and create a .env file
+with: DATABASE_URL=https://fogcitymarathoner-default-rtdb.firebaseio.com
 """
 
 import tkinter as tk
@@ -15,26 +15,36 @@ import firebase_admin
 from firebase_admin import credentials, db
 import secrets
 import string
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 SERVICE_ACCOUNT_FILE = "fogcitymarathoner-2a35f802a83d.json"
-DATABASE_URL         = "https://fogcitymarathoner-default-rtdb.firebaseio.com"
+DATABASE_URL = os.getenv("DATABASE_URL", "https://fogcitymarathoner-default-rtdb.firebaseio.com")
 
 # ── Firebase init ──────────────────────────────────────────────────────────────
 
 cred = credentials.Certificate(SERVICE_ACCOUNT_FILE)
 firebase_admin.initialize_app(cred, {"databaseURL": DATABASE_URL})
 
+
 def fb_get(path):
     return db.reference(path).get()
 
+
 def fb_push(path, data):
-    return db.reference(path).push(data)   # returns a Reference; .key is the push id
+    return db.reference(path).push(data)  # returns a Reference; .key is the push id
+
 
 def fb_update(path, data):
     db.reference(path).update(data)
 
+
 def fb_delete(path):
     db.reference(path).delete()
+
 
 # ── Main app ───────────────────────────────────────────────────────────────────
 
@@ -46,13 +56,14 @@ class App(tk.Tk):
         self.configure(bg="#1e1e2e")
         self.resizable(True, True)
 
-        self.uid_var     = tk.StringVar()
+        self.uid_var = tk.StringVar()
         self.account_var = tk.StringVar()
-        self.pw_var      = tk.StringVar()
+        self.pw_var = tk.StringVar()
         self.pw_var_original = tk.StringVar()
-        self.vendor_var  = tk.StringVar()
+        self.vendor_var = tk.StringVar()
+        self.password_length = tk.IntVar(value=12)  # Default to 12
 
-        self.current_uid    = None
+        self.current_uid = None
         self.current_pushid = None
         self.all_rows = []
 
@@ -65,16 +76,18 @@ class App(tk.Tk):
         style = ttk.Style(self)
         style.theme_use("clam")
         style.configure("Treeview",
-            background="#2a2a3e", foreground="#cdd6f4",
-            fieldbackground="#2a2a3e", rowheight=24)
+                        background="#2a2a3e", foreground="#cdd6f4",
+                        fieldbackground="#2a2a3e", rowheight=24)
         style.configure("Treeview.Heading",
-            background="#313244", foreground="#cba6f7", font=("Courier", 10, "bold"))
+                        background="#313244", foreground="#cba6f7", font=("Courier", 10, "bold"))
         style.map("Treeview", background=[("selected", "#45475a")])
         style.configure("TLabel", background="#1e1e2e", foreground="#cdd6f4", font=("Courier", 10))
         style.configure("TEntry", fieldbackground="#313244", foreground="#cdd6f4", font=("Courier", 10))
         style.configure("TButton", background="#313244", foreground="#cba6f7",
                         font=("Courier", 10, "bold"), padding=4)
         style.map("TButton", background=[("active", "#45475a")])
+        style.configure("TRadiobutton", background="#1e1e2e", foreground="#cdd6f4",
+                        font=("Courier", 10))
 
         # top bar
         top = tk.Frame(self, bg="#1e1e2e")
@@ -82,11 +95,11 @@ class App(tk.Tk):
 
         ttk.Label(top, text="User UID:").pack(side="left")
         self.uid_combo = ttk.Combobox(top, textvariable=self.uid_var, width=42,
-                                       font=("Courier", 10))
+                                      font=("Courier", 10))
         self.uid_combo.pack(side="left", padx=6)
         self.uid_combo.bind("<<ComboboxSelected>>", lambda e: self._load_passwords())
 
-        ttk.Button(top, text="↻ Refresh",  command=self._load_users).pack(side="left", padx=4)
+        ttk.Button(top, text="↻ Refresh", command=self._load_users).pack(side="left", padx=4)
         ttk.Button(top, text="+ New User", command=self._new_user_dialog).pack(side="left", padx=4)
 
         tk.Label(top, text="🔑 service account", bg="#1e1e2e", fg="#a6e3a1",
@@ -97,20 +110,23 @@ class App(tk.Tk):
 
         ttk.Label(filter_bar, text="Filter Vendor:").pack(side="left")
         self.filter_var = tk.StringVar()
-        ttk.Entry(filter_bar, textvariable=self.filter_var, width=30).pack(side="left", padx=6)
+        self.filter_entry = ttk.Entry(filter_bar, textvariable=self.filter_var, width=30)
+        self.filter_entry.pack(side="left", padx=6)
+        # Bind Enter key to apply filter
+        self.filter_entry.bind("<Return>", lambda e: self._apply_filter())
+        self.filter_entry.bind("<KP_Enter>", lambda e: self._apply_filter())  # Numpad Enter
+
         ttk.Button(filter_bar, text="🔍 Search", command=self._apply_filter).pack(side="left", padx=4)
         ttk.Button(filter_bar, text="✖ Clear", command=self._clear_filter).pack(side="left", padx=4)
-        # Generate password button
-        ttk.Button(filter_bar, text="⚡ Generate Password", command=self._generate_password).pack(side="left", padx=10)
 
         # password list
         mid = tk.Frame(self, bg="#1e1e2e")
         mid.pack(fill="both", expand=True, padx=10, pady=8)
-        # Table Headers
-        cols = ("pushid", "vendor", "account", "pw")
+        # Table Headers - removed pushid column
+        cols = ("vendor", "account", "pw")
         self.tree = ttk.Treeview(mid, columns=cols, show="headings", selectmode="browse")
-        # Arrange column widths
-        for col, w in [("pushid", 180), ("vendor", 160), ("account", 210), ("pw", 210)]:
+        # Arrange column widths - removed pushid column
+        for col, w in [("vendor", 200), ("account", 250), ("pw", 280)]:
             self.tree.heading(col, text=col.capitalize())
             self.tree.column(col, width=w)
 
@@ -125,20 +141,31 @@ class App(tk.Tk):
                              bg="#1e1e2e", fg="#cba6f7",
                              font=("Courier", 10, "bold"), bd=1, relief="groove")
         form.pack(fill="x", padx=10, pady=(0, 10))
-        # Arrange the form field labels
-        for i, (label, var, show) in enumerate([
-            ("Vendor",   self.vendor_var,  ""),
-            ("Account",  self.account_var, ""),
-            ("Password", self.pw_var,      ""),
-        ]):
-            ttk.Label(form, text=f"{label}:").grid(row=0, column=i*2, padx=(10,2), pady=8, sticky="e")
-            ttk.Entry(form, textvariable=var, width=24, show=show).grid(
-                row=0, column=i*2+1, padx=(0,10), pady=8)
-        ttk.Label(form, text="Password Original:").grid(row=1, column=0, padx=(10,2), pady=8, sticky="e")
-        ttk.Entry(form, textvariable=self.pw_var_original, width=24, show=show).grid(
-            row=1, column=1, padx=(0,10), pady=8)
+
+        # Row 0: Vendor, Account
+        ttk.Label(form, text="Vendor:").grid(row=0, column=0, padx=(10, 2), pady=8, sticky="e")
+        ttk.Entry(form, textvariable=self.vendor_var, width=20).grid(row=0, column=1, padx=(0, 10), pady=8)
+
+        ttk.Label(form, text="Account:").grid(row=0, column=2, padx=(10, 2), pady=8, sticky="e")
+        ttk.Entry(form, textvariable=self.account_var, width=20).grid(row=0, column=3, padx=(0, 10), pady=8)
+
+        # Row 1: Password, Generate button, Length selector
+        ttk.Label(form, text="Password:").grid(row=1, column=0, padx=(10, 2), pady=8, sticky="e")
+        self.pw_entry = ttk.Entry(form, textvariable=self.pw_var, width=20)
+        self.pw_entry.grid(row=1, column=1, padx=(0, 10), pady=8)
+
+        ttk.Button(form, text="⚡ Generate Password", command=self._generate_password).grid(row=1, column=2, padx=(0, 4), pady=8)
+        ttk.Label(form, text="Length:").grid(row=1, column=3, padx=(10, 2), pady=8)
+        ttk.Radiobutton(form, text="12", variable=self.password_length, value=12).grid(row=1, column=4, padx=(0, 2), pady=8)
+        ttk.Radiobutton(form, text="14", variable=self.password_length, value=14).grid(row=1, column=5, padx=(0, 2), pady=8)
+
+        # Row 2: Password Original (full width)
+        ttk.Label(form, text="Password Original:").grid(row=2, column=0, padx=(10, 2), pady=8, sticky="e")
+        ttk.Entry(form, textvariable=self.pw_var_original, width=50).grid(row=2, column=1, columnspan=5, padx=(0, 10), pady=8, sticky="w")
+
+        # Row 3: Buttons
         btn_frame = tk.Frame(form, bg="#1e1e2e")
-        btn_frame.grid(row=2, column=0, columnspan=6, pady=(0,8))
+        btn_frame.grid(row=3, column=0, columnspan=6, pady=(0, 8))
         for text, cmd in [("➕ Add", self._add), ("💾 Update", self._update),
                           ("🗑 Delete", self._delete), ("✖ Clear", self._clear_form)]:
             ttk.Button(btn_frame, text=text, command=cmd).pack(side="left", padx=6)
@@ -174,8 +201,9 @@ class App(tk.Tk):
             if data:
                 self.all_rows = []
                 for pushid, rec in data.items():
-                    row = (pushid, rec.get("vendor", ""), rec.get("account", ""), rec.get("pw", ""))
-                    self.all_rows.append(row)
+                    # Store pushid in all_rows but only display vendor, account, pw
+                    row = (rec.get("vendor", ""), rec.get("account", ""), rec.get("pw", ""))
+                    self.all_rows.append((pushid, row))  # Store pushid separately
                     self.tree.insert("", "end", iid=pushid, values=row)
             self._status(f"Loaded {len(data) if data else 0} password(s).")
         except Exception as ex:
@@ -186,8 +214,8 @@ class App(tk.Tk):
         if not sel:
             return
         self.current_pushid = sel[0]
-        # Put record data into form
-        _, vendor, account, pw = self.tree.item(sel[0], "values")
+        # Put record data into form - now only 3 values (vendor, account, pw)
+        vendor, account, pw = self.tree.item(sel[0], "values")
         self.account_var.set(account)
         self.vendor_var.set(vendor)
         self.pw_var.set(pw)
@@ -200,18 +228,18 @@ class App(tk.Tk):
             messagebox.showwarning("No User", "Select a user first.")
             return
         # The record arrangement for record
-        rec = {"vendor":  self.vendor_var.get(),
-               "pw":      self.pw_var.get(),
+        rec = {"vendor": self.vendor_var.get(),
+               "pw": self.pw_var.get(),
                "account": self.account_var.get()}
         if not any(rec.values()):
             messagebox.showwarning("Empty", "Fill in at least one field.")
             return
         try:
-            ref    = fb_push(f"users/{self.current_uid}/passwords", rec)
+            ref = fb_push(f"users/{self.current_uid}/passwords", rec)
             pushid = ref.key
-            # The record arrangement for table
-            row = (pushid, rec["vendor"], rec["account"], rec["pw"])
-            self.all_rows.append(row)
+            # The record arrangement for table - only display vendor, account, pw
+            row = (rec["vendor"], rec["account"], rec["pw"])
+            self.all_rows.append((pushid, row))
             self.tree.insert("", "end", iid=pushid, values=row)
             self._clear_form()
             self._status(f"Added {pushid}")
@@ -229,9 +257,14 @@ class App(tk.Tk):
             "account": self.account_var.get()}
         try:
             fb_update(f"users/{self.current_uid}/passwords/{self.current_pushid}", rec)
-            # The record arrangement for table
+            # The record arrangement for table - only display vendor, account, pw
             self.tree.item(self.current_pushid,
-                           values=(self.current_pushid, rec["vendor"], rec["account"], rec["pw"]))
+                           values=(rec["vendor"], rec["account"], rec["pw"]))
+            # Update all_rows
+            for i, (pid, row) in enumerate(self.all_rows):
+                if pid == self.current_pushid:
+                    self.all_rows[i] = (pid, (rec["vendor"], rec["account"], rec["pw"]))
+                    break
             self._status(f"Updated {self.current_pushid}")
         except Exception as ex:
             self._status(f"Error: {ex}")
@@ -240,11 +273,13 @@ class App(tk.Tk):
         if not self.current_pushid:
             messagebox.showwarning("No Selection", "Select a record to delete.")
             return
-        if not messagebox.askyesno("Confirm", f"Delete {self.current_pushid}?"):
+        if not messagebox.askyesno("Confirm", f"Delete this record?"):
             return
         try:
             fb_delete(f"users/{self.current_uid}/passwords/{self.current_pushid}")
             self.tree.delete(self.current_pushid)
+            # Remove from all_rows
+            self.all_rows = [(pid, row) for pid, row in self.all_rows if pid != self.current_pushid]
             self.current_pushid = None
             self._clear_form()
             self._status("Deleted.")
@@ -256,12 +291,12 @@ class App(tk.Tk):
         if not search:
             return
         self.tree.delete(*self.tree.get_children())
-        for row in self.all_rows:
-            if search in row[1].lower():  # row[1] is vendor
-                self.tree.insert("", "end", iid=row[0], values=row)
+        for pushid, row in self.all_rows:
+            if search in row[0].lower():  # row[0] is vendor (since row is (vendor, account, pw))
+                self.tree.insert("", "end", iid=pushid, values=row)
 
     def _generate_password(self):
-        length = 14
+        length = self.password_length.get()  # Get selected length (12 or 14)
         allowed = (
             "abcdefghijklmnopqrstuvwxyz"
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -270,20 +305,20 @@ class App(tk.Tk):
         )
         pw = ''.join(secrets.choice(allowed) for _ in range(length))
         self.pw_var.set(pw)
-        self._status("Generated strong password.")
+        self._status(f"Generated {length}-character strong password.")
 
     def _clear_filter(self):
         self.filter_var.set("")
         self.tree.delete(*self.tree.get_children())
-        for row in self.all_rows:
-            self.tree.insert("", "end", iid=row[0], values=row)
+        for pushid, row in self.all_rows:
+            self.tree.insert("", "end", iid=pushid, values=row)
 
     def _new_user_dialog(self):
         dlg = tk.Toplevel(self)
         dlg.title("New User UID")
         dlg.configure(bg="#1e1e2e")
         dlg.resizable(False, False)
-        ttk.Label(dlg, text="Enter UID (e.g. Firebase Auth UID):").pack(padx=16, pady=(12,4))
+        ttk.Label(dlg, text="Enter UID (e.g. Firebase Auth UID):").pack(padx=16, pady=(12, 4))
         uid_entry = ttk.Entry(dlg, width=40)
         uid_entry.pack(padx=16)
 
