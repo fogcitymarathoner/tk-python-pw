@@ -291,9 +291,14 @@ class App(tk.Tk):
         if not search:
             return
         self.tree.delete(*self.tree.get_children())
+        match_count = 0
         for pushid, row in self.all_rows:
-            if search in row[0].lower():  # row[0] is vendor (since row is (vendor, account, pw))
+            vendor = row[0].lower()
+            account = row[1].lower()
+            if search in vendor or search in account:
                 self.tree.insert("", "end", iid=pushid, values=row)
+                match_count += 1
+        self._status(f"Found {match_count} match(es) for '{search}'")
 
     def _generate_password(self):
         length = self.password_length.get()  # Get selected length (12 or 14)
