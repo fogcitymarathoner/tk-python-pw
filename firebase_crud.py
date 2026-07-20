@@ -149,23 +149,31 @@ class App(tk.Tk):
         ttk.Label(form, text="Account:").grid(row=0, column=2, padx=(10, 2), pady=8, sticky="e")
         ttk.Entry(form, textvariable=self.account_var, width=20).grid(row=0, column=3, padx=(0, 10), pady=8)
 
-        # Row 1: Password, Generate button, Length selector
+        # Row 1: Password, Copy button, Generate button, Length selector
         ttk.Label(form, text="Password:").grid(row=1, column=0, padx=(10, 2), pady=8, sticky="e")
         self.pw_entry = ttk.Entry(form, textvariable=self.pw_var, width=20)
         self.pw_entry.grid(row=1, column=1, padx=(0, 10), pady=8)
 
-        ttk.Button(form, text="⚡ Generate Password", command=self._generate_password).grid(row=1, column=2, padx=(0, 4), pady=8)
-        ttk.Label(form, text="Length:").grid(row=1, column=3, padx=(10, 2), pady=8)
-        ttk.Radiobutton(form, text="12", variable=self.password_length, value=12).grid(row=1, column=4, padx=(0, 2), pady=8)
-        ttk.Radiobutton(form, text="14", variable=self.password_length, value=14).grid(row=1, column=5, padx=(0, 2), pady=8)
+        # Copy button with icon - using TButton for consistent styling
+        self.copy_button = ttk.Button(
+            form,
+            text="📋 Copy",
+            command=self._copy_password
+        )
+        self.copy_button.grid(row=1, column=2, padx=(0, 4), pady=8)
+
+        ttk.Button(form, text="⚡ Generate Password", command=self._generate_password).grid(row=1, column=3, padx=(0, 4), pady=8)
+        ttk.Label(form, text="Length:").grid(row=1, column=4, padx=(10, 2), pady=8)
+        ttk.Radiobutton(form, text="12", variable=self.password_length, value=12).grid(row=1, column=5, padx=(0, 2), pady=8)
+        ttk.Radiobutton(form, text="14", variable=self.password_length, value=14).grid(row=1, column=6, padx=(0, 2), pady=8)
 
         # Row 2: Password Original (full width)
         ttk.Label(form, text="Password Original:").grid(row=2, column=0, padx=(10, 2), pady=8, sticky="e")
-        ttk.Entry(form, textvariable=self.pw_var_original, width=50).grid(row=2, column=1, columnspan=5, padx=(0, 10), pady=8, sticky="w")
+        ttk.Entry(form, textvariable=self.pw_var_original, width=50).grid(row=2, column=1, columnspan=6, padx=(0, 10), pady=8, sticky="w")
 
         # Row 3: Buttons
         btn_frame = tk.Frame(form, bg="#1e1e2e")
-        btn_frame.grid(row=3, column=0, columnspan=6, pady=(0, 8))
+        btn_frame.grid(row=3, column=0, columnspan=7, pady=(0, 8))
         for text, cmd in [("➕ Add", self._add), ("💾 Update", self._update),
                           ("🗑 Delete", self._delete), ("✖ Clear", self._clear_form)]:
             ttk.Button(btn_frame, text=text, command=cmd).pack(side="left", padx=6)
@@ -173,6 +181,28 @@ class App(tk.Tk):
         self.status_var = tk.StringVar(value="Ready")
         tk.Label(self, textvariable=self.status_var,
                  bg="#181825", fg="#a6e3a1", font=("Courier", 9), anchor="w").pack(fill="x")
+
+    # ── Copy Password Function ──────────────────────────────────────────────
+
+    def _copy_password(self):
+        """Copy the current password to clipboard and update status"""
+        password = self.pw_var.get().strip()
+        if not password:
+            self._status("⚠️ No password to copy!")
+            return
+
+        try:
+            # Clear clipboard and append the password
+            self.clipboard_clear()
+            self.clipboard_append(password)
+            self._status("✅ Password copied to clipboard!")
+
+            # Optional: Flash the copy button to give visual feedback
+            self.copy_button.configure(text="✅ Copied!")
+            self.after(2000, lambda: self.copy_button.configure(text="📋 Copy"))
+
+        except Exception as e:
+            self._status(f"❌ Error copying to clipboard: {e}")
 
     # ── data ───────────────────────────────────────────────────────────────────
 
