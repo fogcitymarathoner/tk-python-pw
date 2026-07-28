@@ -8,7 +8,7 @@ Requirements:
 Place your service account JSON file next to this script, and create a .env file
 with: DATABASE_URL=https://fogcitymarathoner-default-rtdb.firebaseio.com
 """
-
+# firebase_crud.py
 import tkinter as tk
 from tkinter import ttk, messagebox
 import firebase_admin
