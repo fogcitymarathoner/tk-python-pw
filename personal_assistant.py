@@ -114,9 +114,12 @@ class LocalDB:
     def __init__(self, db_name="personal_assistant.db"):
         self.conn = sqlite3.connect(db_name, check_same_thread=False)
         self._create_tables()
+        self._migrate_database()
 
     def _create_tables(self):
         cursor = self.conn.cursor()
+
+        # Categories table
         cursor.execute("""
                        CREATE TABLE IF NOT EXISTS categories
                        (
@@ -141,6 +144,34 @@ class LocalDB:
                            CURRENT_TIMESTAMP
                        )
                        """)
+
+        # Vendors table (new)
+        cursor.execute("""
+                       CREATE TABLE IF NOT EXISTS vendors
+                       (
+                           id
+                           INTEGER
+                           PRIMARY
+                           KEY
+                           AUTOINCREMENT,
+                           remoteId
+                           TEXT,
+                           name
+                           TEXT
+                           NOT
+                           NULL,
+                           userId
+                           TEXT
+                           NOT
+                           NULL,
+                           created_at
+                           TIMESTAMP
+                           DEFAULT
+                           CURRENT_TIMESTAMP
+                       )
+                       """)
+
+        # Expenses table
         cursor.execute("""
                        CREATE TABLE IF NOT EXISTS expenses
                        (
@@ -153,6 +184,8 @@ class LocalDB:
                            TEXT,
                            vendor
                            TEXT,
+                           vendorId
+                           INTEGER,
                            categoryId
                            INTEGER,
                            amount
@@ -176,12 +209,141 @@ class LocalDB:
                        ) REFERENCES categories
                        (
                            id
-                       ) ON DELETE SET NULL
+                       ) ON DELETE SET NULL,
+                           FOREIGN
+                           KEY
+                       (
+                           vendorId
+                       ) REFERENCES vendors
+                       (
+                           id
+                       )
+                         ON DELETE SET NULL
                            )
                        """)
+
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses(userId, date)")
         self.conn.commit()
+
+    def _migrate_database(self):
+        """Migrate existing database to new schema"""
+        cursor = self.conn.cursor()
+
+        # Check if vendorId column exists
+        cursor.execute("PRAGMA table_info(expenses)")
+        columns = [col[1] for col in cursor.fetchall()]
+
+        if 'vendorId' not in columns:
+            print("🔄 Migrating database: Adding vendorId column...")
+
+            try:
+                # Add vendorId column
+                cursor.execute("ALTER TABLE expenses ADD COLUMN vendorId INTEGER")
+                self.conn.commit()
+                print("✅ Added vendorId column to expenses table")
+            except sqlite3.OperationalError as e:
+                print(f"⚠️ Could not add vendorId column: {e}")
+
+            # Create vendors table if it doesn't exist
+            cursor.execute("""
+                           CREATE TABLE IF NOT EXISTS vendors
+                           (
+                               id
+                               INTEGER
+                               PRIMARY
+                               KEY
+                               AUTOINCREMENT,
+                               remoteId
+                               TEXT,
+                               name
+                               TEXT
+                               NOT
+                               NULL,
+                               userId
+                               TEXT
+                               NOT
+                               NULL,
+                               created_at
+                               TIMESTAMP
+                               DEFAULT
+                               CURRENT_TIMESTAMP
+                           )
+                           """)
+            self.conn.commit()
+
+            # Migrate existing vendor data to vendors table
+            try:
+                # Get unique vendors from expenses
+                cursor.execute("""
+                               SELECT DISTINCT vendor, userId
+                               FROM expenses
+                               WHERE vendor IS NOT NULL
+                                 AND vendor != ''
+                               """)
+                vendors = cursor.fetchall()
+
+                for vendor_name, user_id in vendors:
+                    # Check if vendor already exists
+                    cursor.execute(
+                        "SELECT id FROM vendors WHERE name = ? AND userId = ?",
+                        (vendor_name, user_id)
+                    )
+                    existing = cursor.fetchone()
+
+                    if not existing:
+                        # Insert vendor
+                        cursor.execute(
+                            "INSERT INTO vendors (name, userId) VALUES (?, ?)",
+                            (vendor_name, user_id)
+                        )
+                        vendor_id = cursor.lastrowid
+
+                        # Update expenses with vendorId
+                        cursor.execute(
+                            "UPDATE expenses SET vendorId = ? WHERE vendor = ? AND userId = ?",
+                            (vendor_id, vendor_name, user_id)
+                        )
+
+                self.conn.commit()
+                print("✅ Vendor data migrated successfully!")
+            except Exception as e:
+                print(f"⚠️ Could not migrate vendor data: {e}")
+
+    # ── Vendor Methods ──────────────────────────────────────────────────────
+
+    def get_vendors(self, user_id):
+        c = self.conn.cursor()
+        c.execute("SELECT id, remoteId, name FROM vendors WHERE userId = ? ORDER BY name", (user_id,))
+        return c.fetchall()
+
+    def get_vendor_by_remote(self, remote_id):
+        c = self.conn.cursor()
+        c.execute("SELECT id, name FROM vendors WHERE remoteId = ?", (remote_id,))
+        return c.fetchone()
+
+    def get_vendor_by_name(self, name, user_id):
+        c = self.conn.cursor()
+        c.execute("SELECT id, remoteId FROM vendors WHERE name = ? AND userId = ?", (name, user_id))
+        return c.fetchone()
+
+    def upsert_vendor(self, remote_id, name, user_id):
+        c = self.conn.cursor()
+        c.execute("SELECT id FROM vendors WHERE remoteId = ?", (remote_id,))
+        if c.fetchone():
+            c.execute("UPDATE vendors SET name=? WHERE remoteId=?", (name, remote_id))
+        else:
+            c.execute("INSERT INTO vendors (remoteId, name, userId) VALUES (?, ?, ?)", (remote_id, name, user_id))
+        self.conn.commit()
+        return c.lastrowid
+
+    def delete_vendor(self, vendor_id, user_id):
+        c = self.conn.cursor()
+        c.execute("UPDATE expenses SET vendorId = NULL WHERE vendorId = ? AND userId = ?", (vendor_id, user_id))
+        c.execute("DELETE FROM vendors WHERE id = ? AND userId = ?", (vendor_id, user_id))
+        self.conn.commit()
+
+    # ── Category Methods ──────────────────────────────────────────────────
 
     def get_categories(self, user_id):
         c = self.conn.cursor()
@@ -213,12 +375,20 @@ class LocalDB:
         c.execute("DELETE FROM categories WHERE id = ? AND userId = ?", (category_id, user_id))
         self.conn.commit()
 
+    # ── Expense Methods ──────────────────────────────────────────────────
+
     def get_expenses_by_category(self, category_id, user_id, ascending=True):
         c = self.conn.cursor()
         order = "ASC" if ascending else "DESC"
         c.execute(f"""
-            SELECT e.localId, e.remoteId, e.vendor, e.amount, e.date, e.memo, cat.name, e.categoryId
-            FROM expenses e LEFT JOIN categories cat ON e.categoryId = cat.id
+            SELECT e.localId, e.remoteId, 
+                   COALESCE(v.name, e.vendor, '') as vendor_name, 
+                   e.amount, e.date, e.memo, 
+                   COALESCE(cat.name, '') as category_name, 
+                   e.categoryId
+            FROM expenses e 
+            LEFT JOIN categories cat ON e.categoryId = cat.id
+            LEFT JOIN vendors v ON e.vendorId = v.id
             WHERE e.userId = ? AND (e.categoryId = ? OR ? IS NULL)
             ORDER BY 
                 CAST(substr(e.date, 1, 4) AS INTEGER) {order},
@@ -231,8 +401,14 @@ class LocalDB:
         c = self.conn.cursor()
         order = "ASC" if ascending else "DESC"
         c.execute(f"""
-            SELECT e.localId, e.remoteId, e.vendor, e.amount, e.date, e.memo, cat.name, e.categoryId
-            FROM expenses e LEFT JOIN categories cat ON e.categoryId = cat.id
+            SELECT e.localId, e.remoteId, 
+                   COALESCE(v.name, e.vendor, '') as vendor_name, 
+                   e.amount, e.date, e.memo, 
+                   COALESCE(cat.name, '') as category_name, 
+                   e.categoryId
+            FROM expenses e 
+            LEFT JOIN categories cat ON e.categoryId = cat.id
+            LEFT JOIN vendors v ON e.vendorId = v.id
             WHERE e.userId = ? 
             ORDER BY 
                 COALESCE(cat.name, 'Uncategorized') ASC,
@@ -242,17 +418,25 @@ class LocalDB:
         """, (user_id,))
         return c.fetchall()
 
-    def upsert_expense(self, remote_id, vendor, amount, dt, memo, category_id, user_id):
+    def upsert_expense(self, remote_id, vendor_id, amount, dt, memo, category_id, user_id):
         c = self.conn.cursor()
-        c.execute("SELECT localId FROM expenses WHERE remoteId = ?", (remote_id,))
-        exists = c.fetchone()
-        if exists:
-            c.execute("UPDATE expenses SET vendor=?, amount=?, date=?, memo=?, categoryId=? WHERE remoteId=?",
-                      (vendor, str(amount), dt, memo, category_id, remote_id))
+        c.execute("SELECT localId, vendor FROM expenses WHERE remoteId = ?", (remote_id,))
+        result = c.fetchone()
+        if result:
+            # If vendor_id is None, keep the existing vendor text if available
+            if vendor_id is None:
+                c.execute("SELECT vendor FROM expenses WHERE remoteId = ?", (remote_id,))
+                vendor_text = c.fetchone()[0]
+                c.execute(
+                    "UPDATE expenses SET vendor=?, vendorId=?, amount=?, date=?, memo=?, categoryId=? WHERE remoteId=?",
+                    (vendor_text, vendor_id, str(amount), dt, memo, category_id, remote_id))
+            else:
+                c.execute("UPDATE expenses SET vendorId=?, amount=?, date=?, memo=?, categoryId=? WHERE remoteId=?",
+                          (vendor_id, str(amount), dt, memo, category_id, remote_id))
         else:
             c.execute(
-                "INSERT INTO expenses (remoteId, vendor, amount, date, memo, categoryId, userId) VALUES (?,?,?,?,?,?,?)",
-                (remote_id, vendor, str(amount), dt, memo, category_id, user_id))
+                "INSERT INTO expenses (remoteId, vendorId, amount, date, memo, categoryId, userId) VALUES (?,?,?,?,?,?,?)",
+                (remote_id, vendor_id, str(amount), dt, memo, category_id, user_id))
         self.conn.commit()
 
     def delete_expense(self, local_id):
@@ -449,6 +633,7 @@ class PersonalAssistant(tk.Tk):
         self.local_db = LocalDB()
         self.current_uid = None
         self.selected_category_id = None
+        self.selected_vendor_id = None
         self.sort_ascending = True  # True = oldest first, False = newest first
 
         # Password module data storage
@@ -458,6 +643,9 @@ class PersonalAssistant(tk.Tk):
         # Subscription module data storage
         self.sub_all_data = {}  # Store all subscription data for searching
         self.sub_search_v = tk.StringVar()  # Search variable for subscriptions
+
+        # Expense module data storage
+        self.vendors_cache = []  # Store vendors for dropdown
 
         self._configure_styles()
         self._build_ui()
@@ -475,6 +663,7 @@ class PersonalAssistant(tk.Tk):
         style.configure("TLabelframe", background="#1e1e2e", foreground="#cba6f7")
         style.configure("TLabelframe.Label", background="#1e1e2e", foreground="#cba6f7", font=("Courier", 10, "bold"))
         style.configure("TRadiobutton", background="#1e1e2e", foreground="#cdd6f4", font=("Courier", 10))
+        style.configure("TCombobox", fieldbackground="#313244", foreground="#cdd6f4", font=("Courier", 10))
 
     def _build_ui(self):
         # Top Bar
@@ -530,13 +719,30 @@ class PersonalAssistant(tk.Tk):
                 for rid, d in cats.items():
                     self.local_db.upsert_category(rid, d.get("name"), self.current_uid)
 
+            # Sync vendors
+            vendors = fb_get(f"users/{self.current_uid}/vendors")
+            if vendors:
+                for rid, d in vendors.items():
+                    self.local_db.upsert_vendor(rid, d.get("name"), self.current_uid)
+
             exps = fb_get(f"users/{self.current_uid}/expenses")
             if exps:
                 for rid, d in exps.items():
                     rcat = d.get("remoteCategoryId")
                     lcat = self.local_db.get_category_by_remote(rcat) if rcat else None
-                    self.local_db.upsert_expense(rid, d.get("vendor"), d.get("amount"), d.get("date"),
-                                                 d.get("memo", ""), lcat[0] if lcat else None, self.current_uid)
+
+                    rvendor = d.get("remoteVendorId")
+                    lvendor = self.local_db.get_vendor_by_remote(rvendor) if rvendor else None
+
+                    self.local_db.upsert_expense(
+                        rid,
+                        lvendor[0] if lvendor else None,
+                        d.get("amount"),
+                        d.get("date"),
+                        d.get("memo", ""),
+                        lcat[0] if lcat else None,
+                        self.current_uid
+                    )
             self._refresh_expense_data()
             self._status("✅ Sync Complete")
         except Exception as e:
@@ -975,6 +1181,7 @@ class PersonalAssistant(tk.Tk):
         self.exp_memo_v = tk.StringVar()
         self.exp_current_lid = None
         self.cats_cache = []
+        self.vendors_cache = []
         self.current_view = "all"  # "all" or "category"
 
         # Main Paned Window
@@ -1030,9 +1237,17 @@ class PersonalAssistant(tk.Tk):
         form = tk.LabelFrame(right_panel, text=" Add/Edit Expense ", bg="#1e1e2e", fg="#cba6f7")
         form.pack(fill="x", pady=5)
 
-        # Row 1
+        # Row 1 - Vendor (Combobox), Amount, Date
         ttk.Label(form, text="Vendor:").grid(row=0, column=0, padx=5, pady=5, sticky="e")
-        ttk.Entry(form, textvariable=self.exp_vendor_v, width=20).grid(row=0, column=1, padx=5)
+
+        # Vendor Combobox with ability to add new vendors
+        vendor_frame = tk.Frame(form, bg="#1e1e2e")
+        vendor_frame.grid(row=0, column=1, padx=5, sticky="w")
+
+        self.vendor_combo = ttk.Combobox(vendor_frame, textvariable=self.exp_vendor_v, width=18, font=("Courier", 10))
+        self.vendor_combo.pack(side="left")
+
+        ttk.Button(vendor_frame, text="➕", width=3, command=self._add_vendor).pack(side="left", padx=2)
 
         ttk.Label(form, text="Amount:").grid(row=0, column=2, padx=5, sticky="e")
         ttk.Entry(form, textvariable=self.exp_amt_v, width=15).grid(row=0, column=3, padx=5)
@@ -1049,7 +1264,7 @@ class PersonalAssistant(tk.Tk):
         ttk.Button(date_frame, text="Today", width=5,
                    command=lambda: self.exp_date_v.set(datetime.now().strftime("%Y-%m-%d"))).pack(side="left", padx=2)
 
-        # Row 2
+        # Row 2 - Memo
         ttk.Label(form, text="Memo:").grid(row=1, column=0, padx=5, pady=5, sticky="e")
         ttk.Entry(form, textvariable=self.exp_memo_v, width=60).grid(row=1, column=1, columnspan=5, padx=5, sticky="ew")
 
@@ -1060,6 +1275,116 @@ class PersonalAssistant(tk.Tk):
         ttk.Button(btn_frame, text="✏️ Update Expense", command=self._update_expense).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="🗑️ Delete Expense", command=self._delete_expense).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="🔄 Clear Form", command=self._clear_expense_form).pack(side="left", padx=5)
+
+        # Vendor management buttons
+        ttk.Button(btn_frame, text="🏷️ Manage Vendors", command=self._manage_vendors).pack(side="left", padx=5)
+
+    def _add_vendor(self):
+        """Add a new vendor"""
+        if not self.current_uid:
+            messagebox.showerror("Error", "Please select a user first")
+            return
+
+        name = simpledialog.askstring("New Vendor", "Enter vendor name:", parent=self)
+        if not name or not name.strip():
+            return
+
+        name = name.strip()
+
+        # Check if vendor already exists
+        for vendor in self.vendors_cache:
+            if vendor[2].lower() == name.lower():
+                messagebox.showerror("Error", f"Vendor '{name}' already exists!")
+                return
+
+        if FIREBASE_AVAILABLE:
+            ref = fb_push(f"users/{self.current_uid}/vendors", {"name": name})
+            self.local_db.upsert_vendor(ref.key, name, self.current_uid)
+        else:
+            mock_id = f"local_{datetime.now().timestamp()}"
+            self.local_db.upsert_vendor(mock_id, name, self.current_uid)
+
+        self._refresh_expense_data()
+        self._status(f"✅ Vendor '{name}' added")
+
+    def _manage_vendors(self):
+        """Open a dialog to manage vendors"""
+        if not self.current_uid:
+            messagebox.showerror("Error", "Please select a user first")
+            return
+
+        dialog = tk.Toplevel(self)
+        dialog.title("Manage Vendors")
+        dialog.geometry("400x500")
+        dialog.configure(bg="#1e1e2e")
+        dialog.resizable(False, False)
+
+        # Listbox for vendors
+        list_frame = tk.Frame(dialog, bg="#1e1e2e")
+        list_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        vendor_listbox = tk.Listbox(list_frame, bg="#2a2a3e", fg="#cdd6f4", font=("Courier", 10), selectmode="single")
+        vendor_listbox.pack(fill="both", expand=True)
+
+        # Load vendors
+        vendors = self.local_db.get_vendors(self.current_uid)
+        for vendor in vendors:
+            vendor_listbox.insert(tk.END, vendor[2])
+
+        # Buttons
+        btn_frame = tk.Frame(dialog, bg="#1e1e2e")
+        btn_frame.pack(fill="x", padx=10, pady=10)
+
+        def delete_vendor():
+            selection = vendor_listbox.curselection()
+            if not selection:
+                messagebox.showerror("Error", "Please select a vendor to delete")
+                return
+
+            idx = selection[0]
+            vendor = vendors[idx]
+
+            if not messagebox.askyesno("Confirm",
+                                       f"Delete vendor '{vendor[2]}'?\nExpenses using this vendor will be moved to 'Uncategorized'."):
+                return
+
+            if FIREBASE_AVAILABLE and vendor[1]:
+                fb_delete(f"users/{self.current_uid}/vendors/{vendor[1]}")
+
+            self.local_db.delete_vendor(vendor[0], self.current_uid)
+            self._refresh_expense_data()
+            dialog.destroy()
+            self._status(f"🗑️ Vendor '{vendor[2]}' deleted")
+
+        def rename_vendor():
+            selection = vendor_listbox.curselection()
+            if not selection:
+                messagebox.showerror("Error", "Please select a vendor to rename")
+                return
+
+            idx = selection[0]
+            vendor = vendors[idx]
+
+            new_name = simpledialog.askstring("Rename Vendor",
+                                              f"Rename '{vendor[2]}' to:",
+                                              initialvalue=vendor[2],
+                                              parent=dialog)
+            if not new_name or not new_name.strip():
+                return
+
+            new_name = new_name.strip()
+
+            if FIREBASE_AVAILABLE and vendor[1]:
+                fb_update(f"users/{self.current_uid}/vendors/{vendor[1]}", {"name": new_name})
+
+            self.local_db.upsert_vendor(vendor[1], new_name, self.current_uid)
+            self._refresh_expense_data()
+            dialog.destroy()
+            self._status(f"✅ Vendor renamed to '{new_name}'")
+
+        ttk.Button(btn_frame, text="✏️ Rename", command=rename_vendor).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="🗑️ Delete", command=delete_vendor).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Close", command=dialog.destroy).pack(side="right", padx=5)
 
     def _show_date_picker(self):
         current_date = self.exp_date_v.get()
@@ -1141,11 +1466,18 @@ class PersonalAssistant(tk.Tk):
         if not self.current_uid:
             return
 
+        # Refresh categories
         self.cats_cache = self.local_db.get_categories(self.current_uid)
         self.cat_box.delete(0, tk.END)
         self.cat_box.insert(tk.END, "📂 All Expenses")
         for cat in self.cats_cache:
             self.cat_box.insert(tk.END, f"📁 {cat[2]}")
+
+        # Refresh vendors for combobox
+        self.vendors_cache = self.local_db.get_vendors(self.current_uid)
+        self.vendor_combo['values'] = [v[2] for v in self.vendors_cache]
+        if not self.exp_vendor_v.get():
+            self.vendor_combo.set('')
 
         if self.selected_category_id:
             self._load_expenses_by_category(self.selected_category_id)
@@ -1212,8 +1544,9 @@ class PersonalAssistant(tk.Tk):
                         pass
 
                 category_name = r[6] or "Uncategorized"
+                vendor_name = r[2] or "Uncategorized"
                 self.exp_tree.insert("", "end", iid=str(r[0]),
-                                     values=(category_name, r[2] or "", amount, r[4] or "", r[5] or ""))
+                                     values=(category_name, vendor_name, amount, r[4] or "", r[5] or ""))
         else:
             # Category view: Vendor | Amount | Date | Memo
             self.exp_tree.config(columns=("v", "a", "d", "m"))
@@ -1234,8 +1567,9 @@ class PersonalAssistant(tk.Tk):
                     except ValueError:
                         pass
 
+                vendor_name = r[2] or "Uncategorized"
                 self.exp_tree.insert("", "end", iid=str(r[0]),
-                                     values=(r[2] or "", amount, r[4] or "", r[5] or ""))
+                                     values=(vendor_name, amount, r[4] or "", r[5] or ""))
 
     def _get_expense_count(self, category_id):
         if not self.current_uid:
@@ -1252,16 +1586,23 @@ class PersonalAssistant(tk.Tk):
 
         c = self.local_db.conn.cursor()
         c.execute("""
-                  SELECT e.vendor, e.amount, e.date, e.memo, e.categoryId, cat.name
+                  SELECT e.vendorId,
+                         COALESCE(v.name, e.vendor, '') as vendor_name,
+                         e.amount,
+                         e.date,
+                         e.memo,
+                         e.categoryId,
+                         cat.name
                   FROM expenses e
                            LEFT JOIN categories cat ON e.categoryId = cat.id
+                           LEFT JOIN vendors v ON e.vendorId = v.id
                   WHERE e.localId = ?
                   """, (self.exp_current_lid,))
         result = c.fetchone()
 
         if result:
-            vendor, amount, date, memo, category_id, category_name = result
-            self.exp_vendor_v.set(vendor or "")
+            vendor_id, vendor_name, amount, date, memo, category_id, category_name = result
+            self.exp_vendor_v.set(vendor_name or "")
             self.exp_amt_v.set(amount or "")
             self.exp_date_v.set(date or datetime.now().strftime("%Y-%m-%d"))
             self.exp_memo_v.set(memo or "")
@@ -1371,12 +1712,12 @@ class PersonalAssistant(tk.Tk):
             messagebox.showerror("Error", "Please select a category first")
             return
 
-        vendor = self.exp_vendor_v.get().strip()
+        vendor_name = self.exp_vendor_v.get().strip()
         amount = self.exp_amt_v.get().strip()
         date = self.exp_date_v.get().strip()
         memo = self.exp_memo_v.get().strip()
 
-        if not vendor:
+        if not vendor_name:
             messagebox.showerror("Error", "Vendor is required")
             return
         if not amount:
@@ -1390,9 +1731,25 @@ class PersonalAssistant(tk.Tk):
             messagebox.showerror("Error", "Selected category not found")
             return
 
+        # Get or create vendor
+        vendor = self.local_db.get_vendor_by_name(vendor_name, self.current_uid)
+        if not vendor:
+            # Create new vendor
+            if FIREBASE_AVAILABLE:
+                ref = fb_push(f"users/{self.current_uid}/vendors", {"name": vendor_name})
+                vendor_id = self.local_db.upsert_vendor(ref.key, vendor_name, self.current_uid)
+            else:
+                mock_id = f"local_{datetime.now().timestamp()}"
+                vendor_id = self.local_db.upsert_vendor(mock_id, vendor_name, self.current_uid)
+
+            self._refresh_expense_data()
+        else:
+            vendor_id = vendor[0]
+
         if FIREBASE_AVAILABLE:
             d = {
-                "vendor": vendor,
+                "vendor": vendor_name,  # Keep for backward compatibility
+                "remoteVendorId": vendor[1] if vendor else None,
                 "amount": amount,
                 "date": date,
                 "memo": memo,
@@ -1404,7 +1761,7 @@ class PersonalAssistant(tk.Tk):
             remote_id = f"local_{datetime.now().timestamp()}"
 
         self.local_db.upsert_expense(
-            remote_id, vendor, amount, date, memo,
+            remote_id, vendor_id, amount, date, memo,
             cat[0], self.current_uid
         )
 
@@ -1417,12 +1774,12 @@ class PersonalAssistant(tk.Tk):
             messagebox.showerror("Error", "Please select an expense to update")
             return
 
-        vendor = self.exp_vendor_v.get().strip()
+        vendor_name = self.exp_vendor_v.get().strip()
         amount = self.exp_amt_v.get().strip()
         date = self.exp_date_v.get().strip()
         memo = self.exp_memo_v.get().strip()
 
-        if not vendor:
+        if not vendor_name:
             messagebox.showerror("Error", "Vendor is required")
             return
         if not amount:
@@ -1440,11 +1797,27 @@ class PersonalAssistant(tk.Tk):
 
         remote_id, category_id = result
 
+        # Get or create vendor
+        vendor = self.local_db.get_vendor_by_name(vendor_name, self.current_uid)
+        if not vendor:
+            # Create new vendor
+            if FIREBASE_AVAILABLE:
+                ref = fb_push(f"users/{self.current_uid}/vendors", {"name": vendor_name})
+                vendor_id = self.local_db.upsert_vendor(ref.key, vendor_name, self.current_uid)
+            else:
+                mock_id = f"local_{datetime.now().timestamp()}"
+                vendor_id = self.local_db.upsert_vendor(mock_id, vendor_name, self.current_uid)
+
+            self._refresh_expense_data()
+        else:
+            vendor_id = vendor[0]
+
         cat = next((c for c in self.cats_cache if c[0] == category_id), None)
 
         if FIREBASE_AVAILABLE and remote_id and not remote_id.startswith("local_"):
             d = {
-                "vendor": vendor,
+                "vendor": vendor_name,
+                "remoteVendorId": vendor[1] if vendor else None,
                 "amount": amount,
                 "date": date,
                 "memo": memo,
@@ -1453,7 +1826,7 @@ class PersonalAssistant(tk.Tk):
             fb_update(f"users/{self.current_uid}/expenses/{remote_id}", d)
 
         self.local_db.upsert_expense(
-            remote_id, vendor, amount, date, memo,
+            remote_id, vendor_id, amount, date, memo,
             category_id, self.current_uid
         )
 
