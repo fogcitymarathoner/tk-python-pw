@@ -10,6 +10,8 @@ import tkinter as tk
 from tkinter import ttk, simpledialog, messagebox
 from datetime import datetime, timedelta
 import calendar
+import secrets
+import string
 
 import firebase_admin
 from dotenv import load_dotenv
@@ -449,6 +451,14 @@ class PersonalAssistant(tk.Tk):
         self.selected_category_id = None
         self.sort_ascending = True  # True = oldest first, False = newest first
 
+        # Password module data storage
+        self.pw_all_data = {}  # Store all password data for searching
+        self.password_length = tk.IntVar(value=12)  # Default to 12 characters
+
+        # Subscription module data storage
+        self.sub_all_data = {}  # Store all subscription data for searching
+        self.sub_search_v = tk.StringVar()  # Search variable for subscriptions
+
         self._configure_styles()
         self._build_ui()
         self._load_users()
@@ -464,6 +474,7 @@ class PersonalAssistant(tk.Tk):
         style.configure("TButton", background="#313244", foreground="#cba6f7", font=("Courier", 10, "bold"), padding=4)
         style.configure("TLabelframe", background="#1e1e2e", foreground="#cba6f7")
         style.configure("TLabelframe.Label", background="#1e1e2e", foreground="#cba6f7", font=("Courier", 10, "bold"))
+        style.configure("TRadiobutton", background="#1e1e2e", foreground="#cdd6f4", font=("Courier", 10))
 
     def _build_ui(self):
         # Top Bar
@@ -537,9 +548,29 @@ class PersonalAssistant(tk.Tk):
         container = self.password_frame
         self.pw_account_v = tk.StringVar()
         self.pw_pass_v = tk.StringVar()
+        self.pw_pass_original_v = tk.StringVar()  # Store original password
         self.pw_vendor_v = tk.StringVar()
+        self.pw_search_v = tk.StringVar()  # Search variable
         self.pw_current_id = None
 
+        # ─── Search Bar ──────────────────────────────────────────────────────────
+        search_frame = tk.Frame(container, bg="#1e1e2e")
+        search_frame.pack(fill="x", pady=(5, 10))
+
+        ttk.Label(search_frame, text="🔍 Search:").pack(side="left", padx=(0, 5))
+        self.pw_search_entry = ttk.Entry(search_frame, textvariable=self.pw_search_v, width=40, font=("Courier", 10))
+        self.pw_search_entry.pack(side="left", padx=5)
+
+        ttk.Button(search_frame, text="Search", command=self._pw_search).pack(side="left", padx=2)
+        ttk.Button(search_frame, text="Clear", command=self._pw_clear_search).pack(side="left", padx=2)
+
+        # Bind Enter key to search
+        self.pw_search_entry.bind("<Return>", lambda e: self._pw_search())
+
+        ttk.Label(search_frame, text="(search by account or vendor)", foreground="#6c7086", font=("Courier", 9)).pack(
+            side="left", padx=10)
+
+        # ─── Treeview ────────────────────────────────────────────────────────────
         self.pw_tree = ttk.Treeview(container, columns=("v", "a", "p"), show="headings")
         self.pw_tree.heading("v", text="Vendor")
         self.pw_tree.heading("a", text="Account")
@@ -547,58 +578,181 @@ class PersonalAssistant(tk.Tk):
         self.pw_tree.pack(fill="both", expand=True, pady=5)
         self.pw_tree.bind("<<TreeviewSelect>>", self._pw_on_select)
 
+        # ─── Form ──────────────────────────────────────────────────────────────
         form = tk.LabelFrame(container, text=" Edit Password ", bg="#1e1e2e", fg="#cba6f7")
         form.pack(fill="x", pady=10)
-        ttk.Label(form, text="Vendor:").grid(row=0, column=0, padx=5, pady=5)
-        ttk.Entry(form, textvariable=self.pw_vendor_v).grid(row=0, column=1)
-        ttk.Label(form, text="Account:").grid(row=0, column=2, padx=5)
-        ttk.Entry(form, textvariable=self.pw_account_v).grid(row=0, column=3)
-        ttk.Label(form, text="Password:").grid(row=0, column=4, padx=5)
-        ttk.Entry(form, textvariable=self.pw_pass_v).grid(row=0, column=5)
 
-        btn_f = tk.Frame(container, bg="#1e1e2e")
-        btn_f.pack(fill="x", pady=5)
-        ttk.Button(btn_f, text="Add", command=self._pw_add).pack(side="left", padx=5)
-        ttk.Button(btn_f, text="Update", command=self._pw_update).pack(side="left", padx=5)
-        ttk.Button(btn_f, text="Delete", command=self._pw_delete).pack(side="left", padx=5)
+        # Row 0: Vendor and Account
+        ttk.Label(form, text="Vendor:").grid(row=0, column=0, padx=5, pady=5, sticky="e")
+        ttk.Entry(form, textvariable=self.pw_vendor_v, width=20).grid(row=0, column=1, padx=5)
+
+        ttk.Label(form, text="Account:").grid(row=0, column=2, padx=5, sticky="e")
+        ttk.Entry(form, textvariable=self.pw_account_v, width=20).grid(row=0, column=3, padx=5)
+
+        # Row 1: Password, Generate, Length
+        ttk.Label(form, text="Password:").grid(row=1, column=0, padx=5, pady=5, sticky="e")
+        self.pw_entry = ttk.Entry(form, textvariable=self.pw_pass_v, width=20)
+        self.pw_entry.grid(row=1, column=1, padx=5)
+
+        # Copy button
+        self.copy_button = ttk.Button(form, text="📋 Copy", command=self._pw_copy_password)
+        self.copy_button.grid(row=1, column=2, padx=(0, 5), pady=5)
+
+        # Generate button
+        ttk.Button(form, text="⚡ Generate Password", command=self._pw_generate_password).grid(
+            row=1, column=3, padx=(0, 5), pady=5)
+
+        # Length selection
+        ttk.Label(form, text="Length:").grid(row=1, column=4, padx=(5, 2), pady=5)
+        ttk.Radiobutton(form, text="12", variable=self.password_length, value=12).grid(
+            row=1, column=5, padx=(0, 2), pady=5)
+        ttk.Radiobutton(form, text="14", variable=self.password_length, value=14).grid(
+            row=1, column=6, padx=(0, 2), pady=5)
+
+        # Row 2: Original Password (read-only)
+        ttk.Label(form, text="Original Password:").grid(row=2, column=0, padx=5, pady=5, sticky="e")
+        self.pw_original_entry = ttk.Entry(form, textvariable=self.pw_pass_original_v, width=50, state="readonly")
+        self.pw_original_entry.grid(row=2, column=1, columnspan=6, padx=5, pady=5, sticky="w")
+
+        # Row 3: Buttons
+        btn_f = tk.Frame(form, bg="#1e1e2e")
+        btn_f.grid(row=3, column=0, columnspan=7, pady=5)
+        ttk.Button(btn_f, text="➕ Add", command=self._pw_add).pack(side="left", padx=5)
+        ttk.Button(btn_f, text="💾 Update", command=self._pw_update).pack(side="left", padx=5)
+        ttk.Button(btn_f, text="🗑️ Delete", command=self._pw_delete).pack(side="left", padx=5)
+        ttk.Button(btn_f, text="✖ Clear", command=self._pw_clear_form).pack(side="left", padx=5)
+
+    def _pw_generate_password(self):
+        """Generate a strong password with the selected length"""
+        length = self.password_length.get()  # Get selected length (12 or 14)
+        allowed = (
+            "abcdefghijklmnopqrstuvwxyz"
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            "0123456789"
+            "~@!#$%^&*()/:;?,.<>_-"
+        )
+        pw = ''.join(secrets.choice(allowed) for _ in range(length))
+        self.pw_pass_v.set(pw)
+        self._status(f"Generated {length}-character strong password.")
+
+    def _pw_copy_password(self):
+        """Copy the current password to clipboard"""
+        password = self.pw_pass_v.get().strip()
+        if not password:
+            self._status("⚠️ No password to copy!")
+            return
+
+        try:
+            self.clipboard_clear()
+            self.clipboard_append(password)
+            self._status("✅ Password copied to clipboard!")
+            self.copy_button.configure(text="✅ Copied!")
+            self.after(2000, lambda: self.copy_button.configure(text="📋 Copy"))
+        except Exception as e:
+            self._status(f"❌ Error copying to clipboard: {e}")
+
+    def _pw_search(self):
+        """Filter passwords by account or vendor"""
+        search_term = self.pw_search_v.get().strip().lower()
+
+        if not search_term:
+            self._pw_clear_search()
+            return
+
+        # Clear the tree and show only matching items
+        self.pw_tree.delete(*self.pw_tree.get_children())
+
+        if not self.pw_all_data:
+            return
+
+        count = 0
+        for pid, data in self.pw_all_data.items():
+            vendor = data.get("vendor", "").lower()
+            account = data.get("account", "").lower()
+
+            if search_term in vendor or search_term in account:
+                self.pw_tree.insert("", "end", iid=pid,
+                                    values=(data.get("vendor", ""), data.get("account", ""), data.get("pw", "")))
+                count += 1
+
+        self._status(f"🔍 Found {count} password(s) matching '{search_term}'")
+
+    def _pw_clear_search(self):
+        """Clear search and show all passwords"""
+        self.pw_search_v.set("")
+        self._load_passwords()
+        self._status(f"📋 Showing all passwords")
 
     def _load_passwords(self):
         if not self.current_uid or not FIREBASE_AVAILABLE:
             return
         data = fb_get(f"users/{self.current_uid}/passwords")
         self.pw_tree.delete(*self.pw_tree.get_children())
+        self.pw_all_data = {}
         if data:
+            self.pw_all_data = data
             for pid, r in data.items():
                 self.pw_tree.insert("", "end", iid=pid,
                                     values=(r.get("vendor", ""), r.get("account", ""), r.get("pw", "")))
 
     def _pw_on_select(self, _):
         sel = self.pw_tree.selection()
-        if not sel: return
+        if not sel:
+            return
         self.pw_current_id = sel[0]
         v, a, p = self.pw_tree.item(sel[0], "values")
         self.pw_vendor_v.set(v)
         self.pw_account_v.set(a)
         self.pw_pass_v.set(p)
+        self.pw_pass_original_v.set(p)  # Store original password
 
     def _pw_add(self):
         if not self.current_uid or not FIREBASE_AVAILABLE:
             messagebox.showerror("Error", "Firebase not available")
             return
-        d = {"vendor": self.pw_vendor_v.get(), "account": self.pw_account_v.get(), "pw": self.pw_pass_v.get()}
+        d = {
+            "vendor": self.pw_vendor_v.get().strip(),
+            "account": self.pw_account_v.get().strip(),
+            "pw": self.pw_pass_v.get().strip()
+        }
+        if not any(d.values()):
+            messagebox.showwarning("Empty", "Fill in at least one field.")
+            return
         fb_push(f"users/{self.current_uid}/passwords", d)
         self._load_passwords()
+        self._pw_clear_form()
+        self._status("✅ Password added")
 
     def _pw_update(self):
-        if not self.pw_current_id or not FIREBASE_AVAILABLE: return
-        d = {"vendor": self.pw_vendor_v.get(), "account": self.pw_account_v.get(), "pw": self.pw_pass_v.get()}
+        if not self.pw_current_id or not FIREBASE_AVAILABLE:
+            return
+        d = {
+            "vendor": self.pw_vendor_v.get().strip(),
+            "account": self.pw_account_v.get().strip(),
+            "pw": self.pw_pass_v.get().strip()
+        }
         fb_update(f"users/{self.current_uid}/passwords/{self.pw_current_id}", d)
         self._load_passwords()
+        self._status("✅ Password updated")
 
     def _pw_delete(self):
-        if not self.pw_current_id or not FIREBASE_AVAILABLE: return
+        if not self.pw_current_id or not FIREBASE_AVAILABLE:
+            return
+        if not messagebox.askyesno("Confirm", "Delete this password record?"):
+            return
         fb_delete(f"users/{self.current_uid}/passwords/{self.pw_current_id}")
         self._load_passwords()
+        self._pw_clear_form()
+        self._status("🗑️ Password deleted")
+
+    def _pw_clear_form(self):
+        """Clear all password form fields"""
+        self.pw_vendor_v.set("")
+        self.pw_account_v.set("")
+        self.pw_pass_v.set("")
+        self.pw_pass_original_v.set("")
+        self.pw_current_id = None
+        self.pw_tree.selection_remove(self.pw_tree.selection())
 
     # ── Subscription Module ────────────────────────────────────────────────
 
@@ -607,67 +761,208 @@ class PersonalAssistant(tk.Tk):
         self.sub_name_v = tk.StringVar()
         self.sub_acc_v = tk.StringVar()
         self.sub_amt_v = tk.StringVar()
+        self.sub_due_date_v = tk.StringVar()  # Due Date
+        self.sub_memo_v = tk.StringVar()  # Memo
         self.sub_current_id = None
 
-        self.sub_tree = ttk.Treeview(container, columns=("n", "a", "m"), show="headings")
+        # ─── Search Bar ──────────────────────────────────────────────────────────
+        search_frame = tk.Frame(container, bg="#1e1e2e")
+        search_frame.pack(fill="x", pady=(5, 10))
+
+        ttk.Label(search_frame, text="🔍 Search:").pack(side="left", padx=(0, 5))
+        self.sub_search_entry = ttk.Entry(search_frame, textvariable=self.sub_search_v, width=40, font=("Courier", 10))
+        self.sub_search_entry.pack(side="left", padx=5)
+
+        ttk.Button(search_frame, text="Search", command=self._sub_search).pack(side="left", padx=2)
+        ttk.Button(search_frame, text="Clear", command=self._sub_clear_search).pack(side="left", padx=2)
+
+        # Bind Enter key to search
+        self.sub_search_entry.bind("<Return>", lambda e: self._sub_search())
+
+        ttk.Label(search_frame, text="(search by name or account)", foreground="#6c7086", font=("Courier", 9)).pack(
+            side="left", padx=10)
+
+        # ─── Treeview ────────────────────────────────────────────────────────────
+        self.sub_tree = ttk.Treeview(container, columns=("n", "a", "m", "d", "mem"), show="headings")
         self.sub_tree.heading("n", text="Service")
         self.sub_tree.heading("a", text="Account")
         self.sub_tree.heading("m", text="Amount")
+        self.sub_tree.heading("d", text="Due Date")
+        self.sub_tree.heading("mem", text="Memo")
+        self.sub_tree.column("n", width=150)
+        self.sub_tree.column("a", width=150)
+        self.sub_tree.column("m", width=100)
+        self.sub_tree.column("d", width=100)
+        self.sub_tree.column("mem", width=200)
         self.sub_tree.pack(fill="both", expand=True, pady=5)
         self.sub_tree.bind("<<TreeviewSelect>>", self._sub_on_select)
 
+        # ─── Form ──────────────────────────────────────────────────────────────
         form = tk.LabelFrame(container, text=" Edit Subscription ", bg="#1e1e2e", fg="#cba6f7")
         form.pack(fill="x", pady=10)
-        ttk.Label(form, text="Service:").grid(row=0, column=0, padx=5, pady=5)
-        ttk.Entry(form, textvariable=self.sub_name_v).grid(row=0, column=1)
-        ttk.Label(form, text="Account:").grid(row=0, column=2, padx=5)
-        ttk.Entry(form, textvariable=self.sub_acc_v).grid(row=0, column=3)
-        ttk.Label(form, text="Amount:").grid(row=0, column=4, padx=5)
-        ttk.Entry(form, textvariable=self.sub_amt_v).grid(row=0, column=5)
 
-        btn_f = tk.Frame(container, bg="#1e1e2e")
-        btn_f.pack(fill="x", pady=5)
-        ttk.Button(btn_f, text="Add", command=self._sub_add).pack(side="left", padx=5)
-        ttk.Button(btn_f, text="Update", command=self._sub_update).pack(side="left", padx=5)
-        ttk.Button(btn_f, text="Delete", command=self._sub_delete).pack(side="left", padx=5)
+        # Row 0: Service Name and Account
+        ttk.Label(form, text="Service:").grid(row=0, column=0, padx=5, pady=5, sticky="e")
+        ttk.Entry(form, textvariable=self.sub_name_v, width=20).grid(row=0, column=1, padx=5)
+
+        ttk.Label(form, text="Account:").grid(row=0, column=2, padx=5, sticky="e")
+        ttk.Entry(form, textvariable=self.sub_acc_v, width=20).grid(row=0, column=3, padx=5)
+
+        # Row 1: Amount and Due Date
+        ttk.Label(form, text="Amount:").grid(row=1, column=0, padx=5, pady=5, sticky="e")
+        ttk.Entry(form, textvariable=self.sub_amt_v, width=20).grid(row=1, column=1, padx=5)
+
+        ttk.Label(form, text="Due Date:").grid(row=1, column=2, padx=5, sticky="e")
+        ttk.Entry(form, textvariable=self.sub_due_date_v, width=20).grid(row=1, column=3, padx=5)
+
+        # Row 2: Memo (full width)
+        ttk.Label(form, text="Memo:").grid(row=2, column=0, padx=5, pady=5, sticky="e")
+        ttk.Entry(form, textvariable=self.sub_memo_v, width=68).grid(row=2, column=1, columnspan=3, padx=5, sticky="w")
+
+        # Row 3: Buttons
+        btn_f = tk.Frame(form, bg="#1e1e2e")
+        btn_f.grid(row=3, column=0, columnspan=4, pady=5)
+        ttk.Button(btn_f, text="➕ Add", command=self._sub_add).pack(side="left", padx=5)
+        ttk.Button(btn_f, text="💾 Update", command=self._sub_update).pack(side="left", padx=5)
+        ttk.Button(btn_f, text="🗑️ Delete", command=self._sub_delete).pack(side="left", padx=5)
+        ttk.Button(btn_f, text="✖ Clear", command=self._sub_clear_form).pack(side="left", padx=5)
+
+    def _sub_search(self):
+        """Filter subscriptions by name or account"""
+        search_term = self.sub_search_v.get().strip().lower()
+
+        if not search_term:
+            self._sub_clear_search()
+            return
+
+        # Clear the tree and show only matching items
+        self.sub_tree.delete(*self.sub_tree.get_children())
+
+        if not self.sub_all_data:
+            return
+
+        count = 0
+        for pid, data in self.sub_all_data.items():
+            name = data.get("name", "").lower()
+            account = data.get("account", "").lower()
+
+            if search_term in name or search_term in account:
+                self.sub_tree.insert("", "end", iid=pid,
+                                     values=(
+                                         data.get("name", ""),
+                                         data.get("account", ""),
+                                         data.get("amount", ""),
+                                         data.get("dueDate", ""),
+                                         data.get("memo", "")
+                                     ))
+                count += 1
+
+        self._status(f"🔍 Found {count} subscription(s) matching '{search_term}'")
+
+    def _sub_clear_search(self):
+        """Clear search and show all subscriptions"""
+        self.sub_search_v.set("")
+        self._load_subscriptions()
+        self._status(f"📋 Showing all subscriptions")
 
     def _load_subscriptions(self):
         if not self.current_uid or not FIREBASE_AVAILABLE:
             return
         data = fb_get(f"users/{self.current_uid}/subscriptions")
         self.sub_tree.delete(*self.sub_tree.get_children())
+        self.sub_all_data = {}
         if data:
+            self.sub_all_data = data
             for pid, r in data.items():
                 self.sub_tree.insert("", "end", iid=pid,
-                                     values=(r.get("name", ""), r.get("account", ""), r.get("amount", "")))
+                                     values=(
+                                         r.get("name", ""),
+                                         r.get("account", ""),
+                                         r.get("amount", ""),
+                                         r.get("dueDate", ""),
+                                         r.get("memo", "")
+                                     ))
 
     def _sub_on_select(self, _):
         sel = self.sub_tree.selection()
-        if not sel: return
+        if not sel:
+            return
         self.sub_current_id = sel[0]
-        n, a, m = self.sub_tree.item(sel[0], "values")
+        n, a, m, d, mem = self.sub_tree.item(sel[0], "values")
         self.sub_name_v.set(n)
         self.sub_acc_v.set(a)
         self.sub_amt_v.set(m)
+        self.sub_due_date_v.set(d)
+        self.sub_memo_v.set(mem)
 
     def _sub_add(self):
         if not self.current_uid or not FIREBASE_AVAILABLE:
             messagebox.showerror("Error", "Firebase not available")
             return
-        d = {"name": self.sub_name_v.get(), "account": self.sub_acc_v.get(), "amount": self.sub_amt_v.get()}
+
+        name = self.sub_name_v.get().strip()
+        if not name:
+            messagebox.showwarning("Invalid Input", "Service Name is required.")
+            return
+
+        d = {
+            "name": name,
+            "account": self.sub_acc_v.get().strip(),
+            "amount": self.sub_amt_v.get().strip(),
+            "dueDate": self.sub_due_date_v.get().strip(),
+            "memo": self.sub_memo_v.get().strip()
+        }
+
         fb_push(f"users/{self.current_uid}/subscriptions", d)
         self._load_subscriptions()
+        self._sub_clear_form()
+        self._status(f"✅ Subscription '{name}' added")
 
     def _sub_update(self):
-        if not self.sub_current_id or not FIREBASE_AVAILABLE: return
-        d = {"name": self.sub_name_v.get(), "account": self.sub_acc_v.get(), "amount": self.sub_amt_v.get()}
+        if not self.sub_current_id or not FIREBASE_AVAILABLE:
+            messagebox.showerror("Error", "No subscription selected or Firebase not available")
+            return
+
+        name = self.sub_name_v.get().strip()
+        if not name:
+            messagebox.showwarning("Invalid Input", "Service Name is required.")
+            return
+
+        d = {
+            "name": name,
+            "account": self.sub_acc_v.get().strip(),
+            "amount": self.sub_amt_v.get().strip(),
+            "dueDate": self.sub_due_date_v.get().strip(),
+            "memo": self.sub_memo_v.get().strip()
+        }
+
         fb_update(f"users/{self.current_uid}/subscriptions/{self.sub_current_id}", d)
         self._load_subscriptions()
+        self._status(f"✅ Subscription '{name}' updated")
 
     def _sub_delete(self):
-        if not self.sub_current_id or not FIREBASE_AVAILABLE: return
+        if not self.sub_current_id or not FIREBASE_AVAILABLE:
+            messagebox.showerror("Error", "No subscription selected or Firebase not available")
+            return
+
+        name = self.sub_name_v.get().strip() or "this subscription"
+        if not messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{name}'?"):
+            return
+
         fb_delete(f"users/{self.current_uid}/subscriptions/{self.sub_current_id}")
         self._load_subscriptions()
+        self._sub_clear_form()
+        self._status(f"🗑️ Subscription '{name}' deleted")
+
+    def _sub_clear_form(self):
+        """Clear all subscription form fields"""
+        self.sub_name_v.set("")
+        self.sub_acc_v.set("")
+        self.sub_amt_v.set("")
+        self.sub_due_date_v.set("")
+        self.sub_memo_v.set("")
+        self.sub_current_id = None
+        self.sub_tree.selection_remove(self.sub_tree.selection())
 
     # ── Expense Module ──────────────────────────────────────────────────────
 
