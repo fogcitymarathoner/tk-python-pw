@@ -401,12 +401,14 @@ class LocalDB:
             FROM expenses e 
             LEFT JOIN categories cat ON e.categoryId = cat.id
             LEFT JOIN vendors v ON e.vendorId = v.id
-            WHERE e.userId = ? AND e.categoryId = ? AND e.vendorId = ?
+            WHERE e.userId = ?
+              AND e.categoryId = ?
+              AND (? IS NULL OR e.vendorId = ?)
             ORDER BY 
                 CAST(substr(e.date, 1, 4) AS INTEGER) {order},
                 CAST(substr(e.date, 6, 2) AS INTEGER) {order},
                 CAST(substr(e.date, 9, 2) AS INTEGER) {order}
-        """, (user_id, category_id, vendor_id))
+        """, (user_id, category_id, vendor_id, vendor_id))
         return c.fetchall()
 
     def get_expenses_with_categories(self, user_id, ascending=True):
@@ -1428,30 +1430,11 @@ class PersonalAssistant(tk.Tk):
 
             self._clear_expense_form()
 
-            # Select first vendor if available
-            if self.category_vendors_cache:
-                self.vendor_box.selection_set(0)
-                self.selected_vendor_id = self.category_vendors_cache[0][0]
-                self._load_expenses_by_category_and_vendor(cat[0], self.selected_vendor_id)
-                # ⭐ Auto-fill vendor in the form
-                self.exp_vendor_v.set(self.category_vendors_cache[0][2])
-                self.exp_category_v.set(cat[2])
-            else:
-                self.selected_vendor_id = None
-                self._load_expenses_by_category(cat[0])
-                self.exp_category_v.set(cat[2])
-
-    def _load_vendors_for_category(self, category_id):
-        """Load vendors that have expenses in this category"""
-        self.vendor_box.delete(0, tk.END)
-        self.category_vendors_cache = self.local_db.get_vendors_by_category(category_id, self.current_uid)
-
-        if self.category_vendors_cache:
-            self.vendor_box.insert(tk.END, "All Vendors")
-            for vendor in self.category_vendors_cache:
-                self.vendor_box.insert(tk.END, vendor[2])
-        else:
-            self.vendor_box.insert(tk.END, "No vendors found")
+            # Keep "All Vendors" selected so choosing a category shows every
+            # expense in that category. A specific vendor is applied only when
+            # the user selects one from the vendor list.
+            self.selected_vendor_id = None
+            self.exp_category_v.set(cat[2])
 
     def _on_vendor_select(self, event):
         """Handle vendor selection - update expenses list"""
@@ -1464,22 +1447,50 @@ class PersonalAssistant(tk.Tk):
 
         self._clear_expense_form()
         idx = selection[0]
+
+        # Check if "All Vendors" is selected (index 0)
         if idx == 0 and self.vendor_box.get(0) == "All Vendors":
             # Show all expenses for this category
             self.selected_vendor_id = None
             self._load_expenses_by_category(self.selected_category_id)
+            # Don't auto-fill vendor in form when "All Vendors" is selected
+            self.exp_vendor_v.set("")
         else:
             # Show expenses for specific vendor
-            vendor = self.category_vendors_cache[idx - 1]
-            self.selected_vendor_id = vendor[0]
-            self._load_expenses_by_category_and_vendor(self.selected_category_id, vendor[0])
+            # The vendor_box contains "All Vendors" at index 0, then all vendors after that
+            # So we need to subtract 1 from the index to get the correct vendor from the cache
+            vendor_index = idx - 1
+            if vendor_index < len(self.category_vendors_cache) and vendor_index >= 0:
+                vendor = self.category_vendors_cache[vendor_index]
+                self.selected_vendor_id = vendor[0]
+                self._load_expenses_by_category_and_vendor(self.selected_category_id, vendor[0])
 
-            # ⭐ Auto-fill vendor in the form
-            self.exp_vendor_v.set(vendor[2])
-            # Also update the category if not already set
-            cat = next((c for c in self.cats_cache if c[0] == self.selected_category_id), None)
-            if cat:
-                self.exp_category_v.set(cat[2])
+                # ⭐ Auto-fill vendor in the form
+                self.exp_vendor_v.set(vendor[2])
+                # Also update the category if not already set
+                cat = next((c for c in self.cats_cache if c[0] == self.selected_category_id), None)
+                if cat:
+                    self.exp_category_v.set(cat[2])
+
+    def _load_vendors_for_category(self, category_id):
+        """Load vendors that have expenses in this category"""
+        self.vendor_box.delete(0, tk.END)
+        self.category_vendors_cache = self.local_db.get_vendors_by_category(category_id, self.current_uid)
+
+        if self.category_vendors_cache:
+            # Add "All Vendors" as the first item
+            self.vendor_box.insert(tk.END, "All Vendors")
+            for vendor in self.category_vendors_cache:
+                self.vendor_box.insert(tk.END, vendor[2])
+            # By default, select "All Vendors" to show all expenses for the category
+            self.vendor_box.selection_set(0)
+            self.selected_vendor_id = None
+            self._load_expenses_by_category(category_id)
+        else:
+            self.vendor_box.insert(tk.END, "No vendors found")
+            self.selected_vendor_id = None
+            # Clear the expense tree
+            self.exp_tree.delete(*self.exp_tree.get_children())
 
     def _load_expenses_by_category_and_vendor(self, category_id, vendor_id):
         """Load expenses filtered by both category and vendor"""
