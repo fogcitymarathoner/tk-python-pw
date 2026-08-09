@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  useTable,
+  ColumnDef,
+  flexRender,
+  stockFeatures,
+  StockFeatures,
+} from "@tanstack/react-table";
 import "./App.css";
 
 // --- Types ---
@@ -909,6 +916,51 @@ function App() {
     return record.name.toLowerCase().includes(term) || record.account.toLowerCase().includes(term);
   });
 
+  // --- TanStack Table Definition ---
+  const columns: ColumnDef<StockFeatures, Expense, any>[] = [
+    {
+      accessorKey: "vendorName",
+      header: "Vendor",
+      size: 150,
+      minSize: 80,
+    },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      size: 100,
+      minSize: 60,
+      cell: (info: any) => {
+        const val = info.getValue() as string;
+        return val.startsWith("$") ? val : `$${parseFloat(val).toFixed(2)}`;
+      },
+    },
+    {
+      accessorKey: "date",
+      header: "Date",
+      size: 110,
+      minSize: 80,
+    },
+    {
+      accessorKey: "memo",
+      header: "Memo",
+      size: 200,
+      minSize: 100,
+    },
+  ];
+
+  const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
+
+  const table = useTable<StockFeatures, Expense>({
+    features: stockFeatures,
+    data: expenses,
+    columns,
+    columnResizeMode: "onChange",
+    state: {
+      columnSizing,
+    },
+    onColumnSizingChange: setColumnSizing,
+  });
+
   return (
     <div className="app-container">
       {/* Top Selection Bar */}
@@ -1140,32 +1192,51 @@ function App() {
                 </div>
               </div>
 
+              {/* TanStack Resizable DataTable */}
               <div className="table-container">
-                <table>
+                <table style={{ width: table.getCenterTotalSize() }}>
                   <thead>
-                    <tr>
-                      <th onClick={() => sortExpenses("v")}>Vendor</th>
-                      <th onClick={() => sortExpenses("a")}>Amount</th>
-                      <th onClick={() => sortExpenses("d")}>Date</th>
-                      <th onClick={() => sortExpenses("m")}>Memo</th>
-                    </tr>
+                    {table.getHeaderGroups().map((headerGroup: any) => (
+                      <tr key={headerGroup.id}>
+                        {headerGroup.headers.map((header: any) => (
+                          <th
+                            key={header.id}
+                            style={{ width: `${header.getSize()}px`, position: "relative" }}
+                            onClick={() => {
+                              const id = header.column.id;
+                              if (id === "vendorName") sortExpenses("v");
+                              else if (id === "amount") sortExpenses("a");
+                              else if (id === "date") sortExpenses("d");
+                              else if (id === "memo") sortExpenses("m");
+                            }}
+                          >
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(header.column.columnDef.header, header.getContext())}
+                            <div
+                              onMouseDown={header.getResizeHandler()}
+                              onTouchStart={header.getResizeHandler()}
+                              className={`col-resizer ${header.column.getIsResizing() ? "is-resizing" : ""}`}
+                              onClick={(e) => e.stopPropagation()} // Prevent trigger sort on resize drag!
+                            />
+                          </th>
+                        ))}
+                      </tr>
+                    ))}
                   </thead>
                   <tbody>
-                    {expenses.map((exp) => (
+                    {table.getRowModel().rows.map((row: any) => (
                       <tr
-                        key={exp.localId}
-                        className={selectedExpense?.localId === exp.localId ? "selected" : ""}
-                        onClick={() => handleExpenseSelect(exp)}
+                        key={row.id}
+                        className={selectedExpense?.localId === row.original.localId ? "selected" : ""}
+                        onClick={() => handleExpenseSelect(row.original)}
                         style={{ cursor: "pointer" }}
                       >
-                        <td>{exp.vendorName || "Uncategorized"}</td>
-                        <td>
-                          {exp.amount.startsWith("$")
-                            ? exp.amount
-                            : `$${parseFloat(exp.amount).toFixed(2)}`}
-                        </td>
-                        <td>{exp.date}</td>
-                        <td>{exp.memo}</td>
+                        {row.getVisibleCells().map((cell: any) => (
+                          <td key={cell.id} style={{ width: `${cell.column.getSize()}px` }}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
                       </tr>
                     ))}
                     {expenses.length === 0 && (

@@ -236,6 +236,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  table-layout: fixed; /* Respect custom column sizing exactly */
 }
 
 th {
@@ -253,6 +254,35 @@ th {
 
 th:hover {
   background-color: var(--bg-active);
+}
+
+.col-resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background-color: transparent;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+  z-index: 15;
+}
+
+.col-resizer::after {
+  content: "";
+  position: absolute;
+  right: 1px;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background-color: var(--bg-overlay);
+}
+
+.col-resizer:hover::after, .col-resizer.is-resizing::after {
+  background-color: var(--color-purple);
+  width: 3px;
+  right: 0;
 }
 
 td {
