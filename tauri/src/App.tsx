@@ -41,6 +41,7 @@ interface PasswordRecord {
   vendor: string;
   account: string;
   pw: string;
+  memo?: string;
 }
 
 interface SubscriptionRecord {
@@ -76,6 +77,7 @@ function App() {
   const [pwVendor, setPwVendor] = useState<string>("");
   const [pwAccount, setPwAccount] = useState<string>("");
   const [pwPassword, setPwPassword] = useState<string>("");
+  const [pwMemo, setPwMemo] = useState<string>("");
   const [pwLength, setPwLength] = useState<12 | 14>(12);
   const [pwOriginal, setPwOriginal] = useState<string>("");
   const [copiedText, setCopiedText] = useState<boolean>(false);
@@ -89,6 +91,10 @@ function App() {
   const [subAmount, setSubAmount] = useState<string>("");
   const [subDueDate, setSubDueDate] = useState<string>("");
   const [subMemo, setSubMemo] = useState<string>("");
+  const [subSortAscending, setSubSortAscending] = useState<boolean>(true);
+  const [subViewMode, setSubViewMode] = useState<"list" | "calendar">("list");
+  const [calMonth, setCalMonth] = useState<number>(new Date().getMonth());
+  const [calYear, setCalYear] = useState<number>(new Date().getFullYear());
 
   // --- Expenses State ---
   const [categories, setCategories] = useState<Category[]>([]);
@@ -105,12 +111,6 @@ function App() {
   const [expCategory, setExpCategory] = useState<string>("");
   const [expMemo, setExpMemo] = useState<string>("");
   const [sortAscending, setSortAscending] = useState<boolean>(true);
-
-  // Autocomplete state
-  const [vendorSuggestions, setVendorSuggestions] = useState<string[]>([]);
-  const [categorySuggestions, setCategorySuggestions] = useState<string[]>([]);
-  const [showVendorSug, setShowVendorSug] = useState<boolean>(false);
-  const [showCategorySug, setShowCategorySug] = useState<boolean>(false);
 
   // Refs for tracking lists of all items for suggestions
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
@@ -169,6 +169,7 @@ function App() {
 
   // Guard to prevent recursive select loops
   const isUpdatingSelection = useRef<boolean>(false);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   // --- Initialization ---
   useEffect(() => {
@@ -251,6 +252,7 @@ function App() {
     setPwAccount(record.account);
     setPwPassword(record.pw);
     setPwOriginal(record.pw);
+    setPwMemo(record.memo || "");
     setPwModalMode("edit");
     setIsPwModalOpen(true);
   };
@@ -261,6 +263,7 @@ function App() {
     setPwAccount("");
     setPwPassword("");
     setPwOriginal("");
+    setPwMemo("");
     setPwModalMode("add");
     setIsPwModalOpen(true);
   };
@@ -293,7 +296,7 @@ function App() {
   };
 
   const handleAddPassword = async () => {
-    if (!pwVendor && !pwAccount && !pwPassword) {
+    if (!pwVendor && !pwAccount && !pwPassword && !pwMemo) {
       alert("Fill in at least one field.");
       return;
     }
@@ -303,6 +306,7 @@ function App() {
         vendor: pwVendor,
         account: pwAccount,
         pw: pwPassword,
+        memo: pwMemo,
       });
       setStatusMsg("✅ Password added");
       closePwModal();
@@ -321,6 +325,7 @@ function App() {
         vendor: pwVendor,
         account: pwAccount,
         pw: pwPassword,
+        memo: pwMemo,
       });
       setStatusMsg("✅ Password updated");
       closePwModal();
@@ -640,37 +645,6 @@ function App() {
     setSelectedExpense(null);
   };
 
-  // Form Field Changers with suggestions/autocomplete
-  const handleVendorInputChange = (val: string) => {
-    setExpVendor(val);
-    if (!val) {
-      setVendorSuggestions([]);
-      setShowVendorSug(false);
-      return;
-    }
-    const filtered = allVendors
-      .map(v => v.name)
-      .filter(name => name.toLowerCase().includes(val.toLowerCase()))
-      .slice(0, 10);
-    setVendorSuggestions(filtered);
-    setShowVendorSug(filtered.length > 0);
-  };
-
-  const handleCategoryInputChange = (val: string) => {
-    setExpCategory(val);
-    if (!val) {
-      setCategorySuggestions([]);
-      setShowCategorySug(false);
-      return;
-    }
-    const filtered = allCategories
-      .map(c => c.name)
-      .filter(name => name.toLowerCase().includes(val.toLowerCase()))
-      .slice(0, 10);
-    setCategorySuggestions(filtered);
-    setShowCategorySug(filtered.length > 0);
-  };
-
   const clearExpenseAllFilters = () => {
     setSelectedCategory(null);
     setSelectedVendor(null);
@@ -683,14 +657,59 @@ function App() {
     const name = prompt("Enter new category name:");
     if (!name || !name.trim()) return;
     const catName = name.trim();
-    if (allCategories.some(c => c.name.toLowerCase() === catName.toLowerCase())) {
-      alert(`Category '${catName}' already exists!`);
+    
+    // Check if it already exists (case-insensitive, trimmed)
+    const existing = allCategories.find(c => c.name.trim().toLowerCase() === catName.toLowerCase());
+    if (existing) {
+      setStatusMsg(`ℹ️ Category '${existing.name}' already exists; selecting it.`);
+      
+      setSelectedCategory(existing);
+      setSelectedVendor(null);
+
+      // Re-fetch everything to ensure state is clean and the existing category is shown and selected
+      const cats = await invoke<Category[]>("get_categories", { uid: userUid });
+      setCategories(cats);
+      setAllCategories(cats);
+
+      const vends = await invoke<Vendor[]>("get_vendors", { uid: userUid });
+      setAllVendors(vends);
+      
+      // Load vendors for this category
+      const catVendors = await invoke<Vendor[]>("get_vendors_by_category", {
+        uid: userUid,
+        categoryId: existing.id,
+      });
+      setVendors(catVendors);
+
+      setExpCategory(existing.name);
+      loadFilteredExpenses(existing.id, null);
       return;
     }
+
     try {
-      await invoke<number>("add_category", { uid: userUid, name: catName });
+      const newId = await invoke<number>("add_category", { uid: userUid, name: catName });
       setStatusMsg(`✅ Category '${catName}' added`);
-      refreshExpenseData();
+
+      const newCategory: Category = {
+        id: newId,
+        remoteId: null,
+        name: catName,
+        userId: userUid,
+      };
+
+      setSelectedCategory(newCategory);
+      setSelectedVendor(null);
+
+      // Re-fetch everything
+      const cats = await invoke<Category[]>("get_categories", { uid: userUid });
+      setCategories(cats);
+      setAllCategories(cats);
+
+      const vends = await invoke<Vendor[]>("get_vendors", { uid: userUid });
+      setAllVendors(vends);
+      setVendors([]); // A brand new category has no vendors associated with its expenses yet
+
+      setExpenses([]); // Since new category has no expenses
     } catch (err: any) {
       alert(`Error: ${err}`);
     }
@@ -743,14 +762,55 @@ function App() {
     const name = prompt("Enter new vendor name:");
     if (!name || !name.trim()) return;
     const vName = name.trim();
-    if (allVendors.some(v => v.name.toLowerCase() === vName.toLowerCase())) {
-      alert(`Vendor '${vName}' already exists!`);
+
+    // Check if it already exists (case-insensitive, trimmed)
+    const existing = allVendors.find(v => v.name.trim().toLowerCase() === vName.toLowerCase());
+    if (existing) {
+      setStatusMsg(`ℹ️ Vendor '${existing.name}' already exists; selecting it.`);
+      
+      // Clear category selection so we see all vendors and the existing vendor is shown
+      setSelectedCategory(null);
+      setSelectedVendor(existing);
+
+      // Re-fetch everything to ensure state is clean and the existing vendor is shown in the full list
+      const cats = await invoke<Category[]>("get_categories", { uid: userUid });
+      setCategories(cats);
+      setAllCategories(cats);
+
+      const vends = await invoke<Vendor[]>("get_vendors", { uid: userUid });
+      setAllVendors(vends);
+      setVendors(vends); // Ensure the full list of vendors is displayed so they can see "existing"!
+
+      setExpVendor(existing.name);
+      loadAllExpenses();
       return;
     }
+
     try {
-      await invoke("add_vendor", { uid: userUid, name: vName });
+      const newId = await invoke<number>("add_vendor", { uid: userUid, name: vName });
       setStatusMsg(`✅ Vendor '${vName}' added`);
-      refreshExpenseData();
+      
+      const newVendor: Vendor = {
+        id: newId,
+        remoteId: null,
+        name: vName,
+        userId: userUid,
+      };
+
+      // Clear category selection so we see all vendors and the new vendor is shown
+      setSelectedCategory(null);
+      setSelectedVendor(newVendor);
+
+      // Re-fetch everything
+      const cats = await invoke<Category[]>("get_categories", { uid: userUid });
+      setCategories(cats);
+      setAllCategories(cats);
+
+      const vends = await invoke<Vendor[]>("get_vendors", { uid: userUid });
+      setAllVendors(vends);
+      setVendors(vends); // Show all vendors including the new one
+      
+      setExpenses([]); // Since new vendor has no expenses
     } catch (err: any) {
       alert(`Error: ${err}`);
     }
@@ -812,7 +872,7 @@ function App() {
         amount: expAmount,
         date: expDate,
         memo: expMemo,
-        category_name: expCategory,
+        categoryName: expCategory,
       });
       setStatusMsg("✅ Expense added successfully");
       closeExpenseModal();
@@ -837,7 +897,7 @@ function App() {
         amount: expAmount,
         date: expDate,
         memo: expMemo,
-        category_name: expCategory,
+        categoryName: expCategory,
       });
       setStatusMsg("✅ Expense updated");
       closeExpenseModal();
@@ -908,13 +968,122 @@ function App() {
   // --- Filtering computations ---
   const filteredPasswords = Object.entries(passwordsMap).filter(([_, record]) => {
     const term = pwSearch.toLowerCase();
-    return record.vendor.toLowerCase().includes(term) || record.account.toLowerCase().includes(term);
+    return (
+      record.vendor.toLowerCase().includes(term) ||
+      record.account.toLowerCase().includes(term) ||
+      (record.memo || "").toLowerCase().includes(term)
+    );
   });
 
-  const filteredSubscriptions = Object.entries(subscriptionsMap).filter(([_, record]) => {
-    const term = subSearch.toLowerCase();
-    return record.name.toLowerCase().includes(term) || record.account.toLowerCase().includes(term);
-  });
+  const getOrdinalDay = (n: number): string => {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
+
+  const parseDueDateToNumber = (dueDate: string): number => {
+    if (!dueDate) return 999;
+    const clean = dueDate.trim();
+    
+    // Check if it's a full date (e.g. YYYY-MM-DD or MM/DD/YYYY)
+    if (clean.includes("-") || clean.includes("/")) {
+      const parsed = Date.parse(clean);
+      if (!isNaN(parsed)) {
+        return new Date(parsed).getDate();
+      }
+    }
+
+    // Extract leading/any sequence of digits (e.g. "1st" -> 1, "22nd" -> 22)
+    const match = clean.match(/\d+/);
+    if (match) {
+      return parseInt(match[0], 10);
+    }
+    return 999;
+  };
+
+  const filteredSubscriptions = Object.entries(subscriptionsMap)
+    .filter(([_, record]) => {
+      const term = subSearch.toLowerCase();
+      return record.name.toLowerCase().includes(term) || record.account.toLowerCase().includes(term);
+    })
+    .sort((a, b) => {
+      const dayA = parseDueDateToNumber(a[1].dueDate);
+      const dayB = parseDueDateToNumber(b[1].dueDate);
+      if (dayA < dayB) return subSortAscending ? -1 : 1;
+      if (dayA > dayB) return subSortAscending ? 1 : -1;
+      return 0;
+    });
+
+  const handlePrevMonth = () => {
+    setCalMonth((prev) => {
+      if (prev === 0) {
+        setCalYear((y) => y - 1);
+        return 11;
+      }
+      return prev - 1;
+    });
+  };
+
+  const handleNextMonth = () => {
+    setCalMonth((prev) => {
+      if (prev === 11) {
+        setCalYear((y) => y + 1);
+        return 0;
+      }
+      return prev + 1;
+    });
+  };
+
+  const getSubsForDay = (dayNum: number): [string, SubscriptionRecord][] => {
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+    return Object.entries(subscriptionsMap)
+      .filter(([_, sub]) => {
+        const clean = sub.dueDate.trim();
+        
+        // Full date match (YYYY-MM-DD or MM/DD/YYYY)
+        if (clean.includes("-") || clean.includes("/")) {
+          const parsed = Date.parse(clean);
+          if (!isNaN(parsed)) {
+            const d = new Date(parsed);
+            return d.getDate() === dayNum && d.getMonth() === calMonth && d.getFullYear() === calYear;
+          }
+        }
+
+        // Recurring month day (e.g. "15th" -> 15)
+        const match = clean.match(/\d+/);
+        if (match) {
+          const subDay = parseInt(match[0], 10);
+          // Standard match: the subscription's day is exactly equal to today's day number
+          if (subDay === dayNum && subDay <= daysInMonth) {
+            return true;
+          }
+          // Overflow match: if this is the last day of the month,
+          // and the subscription is scheduled on a day that exceeds this month's length
+          if (dayNum === daysInMonth && subDay > daysInMonth) {
+            return true;
+          }
+        }
+        return false;
+      })
+      .map(([id, sub]) => {
+        const clean = sub.dueDate.trim();
+        const match = clean.match(/\d+/);
+        if (match) {
+          const subDay = parseInt(match[0], 10);
+          if (dayNum === daysInMonth && subDay > daysInMonth) {
+            return [
+              id,
+              {
+                ...sub,
+                name: `${sub.name}*`, // Mark as overflow on last day of shorter months
+              },
+            ];
+          }
+        }
+        return [id, sub];
+      });
+  };
 
   // --- TanStack Table Definition ---
   const columns: ColumnDef<StockFeatures, Expense, any>[] = [
@@ -1027,6 +1196,7 @@ function App() {
                   <th>Vendor</th>
                   <th>Account</th>
                   <th>Password</th>
+                  <th>Memo</th>
                 </tr>
               </thead>
               <tbody>
@@ -1040,11 +1210,12 @@ function App() {
                     <td>{r.vendor}</td>
                     <td>{r.account}</td>
                     <td>{r.pw}</td>
+                    <td>{r.memo || ""}</td>
                   </tr>
                 ))}
                 {filteredPasswords.length === 0 && (
                   <tr>
-                    <td colSpan={3} style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                    <td colSpan={4} style={{ textAlign: "center", color: "var(--text-muted)" }}>
                       No passwords found
                     </td>
                   </tr>
@@ -1065,46 +1236,223 @@ function App() {
               onChange={(e) => setSubSearch(e.target.value)}
             />
             <button onClick={() => setSubSearch("")}>Clear</button>
+
+            <div className="view-toggle-group" style={{ marginLeft: "10px", marginRight: "10px", display: "flex", gap: "4px" }}>
+              <button
+                className={`tab-btn ${subViewMode === "list" ? "active" : ""}`}
+                onClick={() => setSubViewMode("list")}
+                style={{ padding: "4px 10px", fontSize: "0.9em" }}
+              >
+                📋 List
+              </button>
+              <button
+                className={`tab-btn ${subViewMode === "calendar" ? "active" : ""}`}
+                onClick={() => setSubViewMode("calendar")}
+                style={{ padding: "4px 10px", fontSize: "0.9em" }}
+              >
+                📅 Calendar
+              </button>
+            </div>
+
             <span className="search-hint" style={{ marginRight: "auto" }}>(search by name or account)</span>
             <button className="btn-primary" onClick={openAddSubModal}>➕ Add Subscription</button>
           </div>
 
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Service</th>
-                  <th>Account</th>
-                  <th>Amount</th>
-                  <th>Due Date</th>
-                  <th>Memo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSubscriptions.map(([id, r]) => (
-                  <tr
-                    key={id}
-                    className={selectedSubId === id ? "selected" : ""}
-                    onClick={() => handleSubscriptionSelect(id, r)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <td>{r.name}</td>
-                    <td>{r.account}</td>
-                    <td>{r.amount}</td>
-                    <td>{r.dueDate}</td>
-                    <td>{r.memo}</td>
-                  </tr>
-                ))}
-                {filteredSubscriptions.length === 0 && (
+          {subViewMode === "list" ? (
+            <div className="table-container">
+              <table>
+                <thead>
                   <tr>
-                    <td colSpan={5} style={{ textAlign: "center", color: "var(--text-muted)" }}>
-                      No subscriptions found
-                    </td>
+                    <th>Service</th>
+                    <th>Account</th>
+                    <th>Amount</th>
+                    <th
+                      onClick={() => setSubSortAscending(!subSortAscending)}
+                      style={{ cursor: "pointer", userSelect: "none" }}
+                      title="Click to sort by due date"
+                    >
+                      Due Date {subSortAscending ? "▲" : "▼"}
+                    </th>
+                    <th>Memo</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredSubscriptions.map(([id, r]) => (
+                    <tr
+                      key={id}
+                      className={selectedSubId === id ? "selected" : ""}
+                      onClick={() => handleSubscriptionSelect(id, r)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <td>{r.name}</td>
+                      <td>{r.account}</td>
+                      <td>{r.amount}</td>
+                      <td>{r.dueDate}</td>
+                      <td>{r.memo}</td>
+                    </tr>
+                  ))}
+                  {filteredSubscriptions.length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                        No subscriptions found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="calendar-container">
+              <div className="calendar-month-header" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "15px", marginBottom: "12px", fontSize: "1.2em", fontWeight: "bold" }}>
+                <button onClick={handlePrevMonth} className="btn-secondary" style={{ padding: "4px 10px" }}>◀</button>
+                <span>
+                  {[
+                    "January", "February", "March", "April", "May", "June",
+                    "July", "August", "September", "October", "November", "December"
+                  ][calMonth]} {calYear}
+                </span>
+                <button onClick={handleNextMonth} className="btn-secondary" style={{ padding: "4px 10px" }}>▶</button>
+                <button
+                  onClick={() => {
+                    setCalMonth(new Date().getMonth());
+                    setCalYear(new Date().getFullYear());
+                  }}
+                  className="btn-secondary"
+                  style={{ padding: "4px 8px", fontSize: "0.8em", marginLeft: "10px" }}
+                >
+                  Today
+                </button>
+              </div>
+
+              <div className="calendar-grid">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(w => (
+                  <div
+                    key={w}
+                    className="calendar-week-header"
+                    style={{
+                      textAlign: "center",
+                      fontWeight: "bold",
+                      padding: "6px",
+                      backgroundColor: "var(--bg-input)",
+                      borderRadius: "4px",
+                      color: "var(--color-purple)"
+                    }}
+                  >
+                    {w}
+                  </div>
+                ))}
+
+                {[
+                  ...Array(new Date(calYear, calMonth, 1).getDay()).fill(null),
+                  ...Array.from({ length: new Date(calYear, calMonth + 1, 0).getDate() }, (_, i) => i + 1)
+                ].map((cellDay, index) => {
+                  if (cellDay === null) {
+                    return (
+                      <div
+                        key={`blank-${index}`}
+                        className="calendar-day-cell blank"
+                        style={{
+                          minHeight: "90px",
+                          backgroundColor: "var(--bg-base)",
+                          opacity: 0.15,
+                          borderRadius: "4px"
+                        }}
+                      />
+                    );
+                  }
+
+                  const isTodayActive =
+                    new Date().getDate() === cellDay &&
+                    new Date().getMonth() === calMonth &&
+                    new Date().getFullYear() === calYear;
+
+                  const daySubs = getSubsForDay(cellDay);
+
+                  return (
+                    <div
+                      key={`day-${cellDay}`}
+                      className={`calendar-day-cell ${isTodayActive ? "today" : ""}`}
+                      style={{
+                        minHeight: "95px",
+                        border: isTodayActive ? "2px solid var(--color-purple)" : "1px solid var(--bg-input)",
+                        backgroundColor: isTodayActive ? "rgba(203, 166, 247, 0.15)" : "var(--bg-surface)",
+                        borderRadius: "4px",
+                        padding: "6px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "6px",
+                        boxShadow: isTodayActive ? "0 0 12px rgba(203, 166, 247, 0.25)" : "none",
+                        transition: "all 0.2s ease"
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span
+                          style={{
+                            fontWeight: "bold",
+                            fontSize: "1em",
+                            color: isTodayActive ? "var(--color-purple)" : "var(--text-main)"
+                          }}
+                        >
+                          {cellDay}
+                        </span>
+                        {isTodayActive && (
+                          <span
+                            style={{
+                              fontSize: "0.7em",
+                              color: "var(--color-purple)",
+                              backgroundColor: "rgba(203, 166, 247, 0.2)",
+                              padding: "1px 5px",
+                              borderRadius: "3px",
+                              fontWeight: "bold"
+                            }}
+                          >
+                            TODAY
+                          </span>
+                        )}
+                      </div>
+
+                      <div
+                        style={{
+                          flex: 1,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "4px",
+                          overflowY: "auto",
+                          maxHeight: "70px"
+                        }}
+                      >
+                        {daySubs.map(([id, sub]) => (
+                          <div
+                            key={id}
+                            onClick={() => handleSubscriptionSelect(id, sub)}
+                            className="calendar-sub-badge"
+                            style={{
+                              fontSize: "0.8em",
+                              backgroundColor: "var(--color-purple)",
+                              color: "#11111b",
+                              padding: "2px 5px",
+                              borderRadius: "3px",
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              fontWeight: "bold",
+                              display: "flex",
+                              justifyContent: "space-between"
+                            }}
+                            title={`${sub.name} - ${sub.amount}`}
+                          >
+                            <span>{sub.name}</span>
+                            <span>{sub.amount}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* --- Expenses Tab (3-Column Layout with Modals) --- */}
@@ -1194,7 +1542,7 @@ function App() {
 
               {/* TanStack Resizable DataTable */}
               <div className="table-container">
-                <table style={{ width: table.getCenterTotalSize() }}>
+                <table style={{ width: "100%", minWidth: `${table.getCenterTotalSize()}px` }}>
                   <thead>
                     {table.getHeaderGroups().map((headerGroup: any) => (
                       <tr key={headerGroup.id}>
@@ -1318,6 +1666,15 @@ function App() {
                     </label>
                   </div>
                 </div>
+                <div className="form-group form-row-wide">
+                  <label>Memo:</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={pwMemo}
+                    onChange={(e) => setPwMemo(e.target.value)}
+                  />
+                </div>
                 {pwModalMode === "edit" && (
                   <div className="form-group form-row-wide">
                     <label>Original:</label>
@@ -1386,12 +1743,21 @@ function App() {
                 </div>
                 <div className="form-group">
                   <label>Due Date:</label>
-                  <input
-                    type="text"
+                  <select
                     className="input-field"
                     value={subDueDate}
                     onChange={(e) => setSubDueDate(e.target.value)}
-                  />
+                  >
+                    <option value="">-- Select Day --</option>
+                    {Array.from({ length: 31 }, (_, i) => {
+                      const dayStr = getOrdinalDay(i + 1);
+                      return (
+                        <option key={dayStr} value={dayStr}>
+                          {dayStr}
+                        </option>
+                      );
+                    })}
+                  </select>
                 </div>
                 <div className="form-group form-row-wide">
                   <label>Memo:</label>
@@ -1429,33 +1795,23 @@ function App() {
             </div>
             <div className="modal-body">
               <div className="form-grid">
-                <div className="form-group suggestions-container">
+                <div className="form-group">
                   <label>Vendor:</label>
-                  <input
-                    type="text"
+                  <select
                     className="input-field"
                     value={expVendor}
-                    onChange={(e) => handleVendorInputChange(e.target.value)}
-                    onFocus={() => expVendor && setShowVendorSug(true)}
-                    onBlur={() => setTimeout(() => setShowVendorSug(false), 200)}
-                  />
-                  {showVendorSug && (
-                    <div className="suggestions-list">
-                      {vendorSuggestions.map((sug) => (
-                        <div
-                          key={sug}
-                          className="suggestion-item"
-                          onMouseDown={() => {
-                            setExpVendor(sug);
-                            setShowVendorSug(false);
-                            autoFillCategoryForVendor(sug);
-                          }}
-                        >
-                          {sug}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                    onChange={(e) => {
+                      setExpVendor(e.target.value);
+                      autoFillCategoryForVendor(e.target.value);
+                    }}
+                  >
+                    <option value="">-- Select Vendor --</option>
+                    {allVendors.map((v) => (
+                      <option key={v.id} value={v.name}>
+                        {v.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="form-group">
@@ -1472,41 +1828,31 @@ function App() {
                   <label>Date:</label>
                   <div className="date-input-container">
                     <input
+                      ref={dateInputRef}
                       type="date"
                       className="input-field"
                       value={expDate}
                       onChange={(e) => setExpDate(e.target.value)}
                     />
+                    <button onClick={() => dateInputRef.current?.showPicker()} title="Open calendar">📅</button>
                     <button onClick={() => setExpDate(new Date().toISOString().split("T")[0])}>Today</button>
                   </div>
                 </div>
 
-                <div className="form-group suggestions-container">
+                <div className="form-group">
                   <label>Category:</label>
-                  <input
-                    type="text"
+                  <select
                     className="input-field"
                     value={expCategory}
-                    onChange={(e) => handleCategoryInputChange(e.target.value)}
-                    onFocus={() => expCategory && setShowCategorySug(true)}
-                    onBlur={() => setTimeout(() => setShowCategorySug(false), 200)}
-                  />
-                  {showCategorySug && (
-                    <div className="suggestions-list">
-                      {categorySuggestions.map((sug) => (
-                        <div
-                          key={sug}
-                          className="suggestion-item"
-                          onMouseDown={() => {
-                            setExpCategory(sug);
-                            setShowCategorySug(false);
-                          }}
-                        >
-                          {sug}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                    onChange={(e) => setExpCategory(e.target.value)}
+                  >
+                    <option value="">-- Select Category --</option>
+                    {allCategories.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="form-group form-row-wide">

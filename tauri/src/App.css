@@ -349,6 +349,9 @@ tr.selected {
 
 .form-group input, .form-group select, .form-group textarea {
   flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .radio-group {
@@ -501,11 +504,14 @@ tr.selected {
 .date-input-container {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  flex: 1;
+  width: 100%;
 }
 
 .date-input-container input {
-  width: 100px;
+  flex: 1;
+  min-width: 130px;
 }
 
 .date-input-container button {
@@ -617,4 +623,22 @@ tr.selected {
 @keyframes scaleIn {
   from { transform: scale(0.95); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
+}
+
+/* Calendar View Scrollable Styles */
+.calendar-container {
+  flex: 1;
+  overflow: auto;
+  padding: 15px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--bg-input);
+  border-radius: 6px;
+  margin-top: 15px;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  min-width: 700px;
 }

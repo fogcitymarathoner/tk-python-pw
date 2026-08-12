@@ -98,6 +98,7 @@ async fn add_password(
     vendor: String,
     account: String,
     pw: String,
+    memo: String,
     firebase: State<'_, FirebaseState>,
 ) -> Result<String, String> {
     if !firebase.0.is_available() {
@@ -107,6 +108,7 @@ async fn add_password(
         "vendor": vendor,
         "account": account,
         "pw": pw,
+        "memo": memo,
     });
     firebase.0.push(&format!("users/{}/passwords", uid), &data).await
 }
@@ -118,6 +120,7 @@ async fn update_password(
     vendor: String,
     account: String,
     pw: String,
+    memo: String,
     firebase: State<'_, FirebaseState>,
 ) -> Result<(), String> {
     if !firebase.0.is_available() {
@@ -127,6 +130,7 @@ async fn update_password(
         "vendor": vendor,
         "account": account,
         "pw": pw,
+        "memo": memo,
     });
     firebase.0.update(&format!("users/{}/passwords/{}", uid, id), &data).await
 }
@@ -619,26 +623,42 @@ async fn sync_all(uid: String, db: State<'_, DbState>, firebase: State<'_, Fireb
     }
 
     // 1. Fetch from Firebase first (async)
-    let cats_val = firebase.0.get(&format!("users/{}/categories", uid)).await.unwrap_or(Value::Null);
-    let vendors_val = firebase.0.get(&format!("users/{}/vendors", uid)).await.unwrap_or(Value::Null);
-    let exps_val = firebase.0.get(&format!("users/{}/expenses", uid)).await.unwrap_or(Value::Null);
+    let cats_val = firebase.0.get(&format!("users/{}/categories", uid)).await.map_err(|e| format!("Failed to fetch categories: {}", e))?;
+    let vendors_val = firebase.0.get(&format!("users/{}/vendors", uid)).await.map_err(|e| format!("Failed to fetch vendors: {}", e))?;
+    let exps_val = firebase.0.get(&format!("users/{}/expenses", uid)).await.map_err(|e| format!("Failed to fetch expenses: {}", e))?;
 
     // 2. Lock and Sync locally
     let conn = db.0.lock().unwrap();
 
     // Sync Categories
+    let mut remote_cat_ids = std::collections::HashSet::new();
     if let Value::Object(map) = cats_val {
         for (rid, d) in map {
+            remote_cat_ids.insert(rid.clone());
             if let Some(name) = d.get("name").and_then(|n| n.as_str()) {
                 let _ = db::upsert_category(&conn, Some(&rid), name, &uid);
             }
         }
     }
 
+    // Delete local categories that have been deleted from Firebase
+    let local_categories = db::get_categories(&conn, &uid).unwrap_or_default();
+    for cat in local_categories {
+        if let Some(ref rid) = cat.remote_id {
+            if !rid.starts_with("local_") && !remote_cat_ids.contains(rid) {
+                if let Some(id) = cat.id {
+                    let _ = db::delete_category(&conn, id, &uid);
+                }
+            }
+        }
+    }
+
     // Sync Vendors
     let mut remote_vendors_by_name = std::collections::HashMap::new();
+    let mut remote_vendor_ids = std::collections::HashSet::new();
     if let Value::Object(map) = vendors_val {
         for (rid, d) in map {
+            remote_vendor_ids.insert(rid.clone());
             if let Some(name) = d.get("name").and_then(|n| n.as_str()) {
                 let _ = db::upsert_vendor(&conn, Some(&rid), name, &uid);
                 remote_vendors_by_name.insert(name.trim().to_lowercase(), rid);
@@ -646,9 +666,23 @@ async fn sync_all(uid: String, db: State<'_, DbState>, firebase: State<'_, Fireb
         }
     }
 
+    // Delete local vendors that have been deleted from Firebase
+    let local_vendors = db::get_vendors(&conn, &uid).unwrap_or_default();
+    for vendor in local_vendors {
+        if let Some(ref rid) = vendor.remote_id {
+            if !rid.starts_with("local_") && !remote_vendor_ids.contains(rid) {
+                if let Some(id) = vendor.id {
+                    let _ = db::delete_vendor(&conn, id, &uid);
+                }
+            }
+        }
+    }
+
     // Sync Expenses
+    let mut remote_expense_ids = std::collections::HashSet::new();
     if let Value::Object(map) = exps_val {
         for (rid, d) in map {
+            remote_expense_ids.insert(rid.clone());
             let rcat = d.get("remoteCategoryId").and_then(|c| c.as_str());
             let lcat = if let Some(rc) = rcat {
                 db::get_category_by_remote(&conn, rc).ok().flatten()
@@ -696,6 +730,18 @@ async fn sync_all(uid: String, db: State<'_, DbState>, firebase: State<'_, Fireb
                 lcat.and_then(|c| c.id),
                 &uid,
             );
+        }
+    }
+
+    // Delete local expenses that have been deleted from Firebase
+    let local_expenses = db::get_expenses_with_categories(&conn, &uid, true).unwrap_or_default();
+    for exp in local_expenses {
+        if let Some(ref rid) = exp.remote_id {
+            if !rid.starts_with("local_") && !remote_expense_ids.contains(rid) {
+                if let Some(id) = exp.local_id {
+                    let _ = db::delete_expense(&conn, id);
+                }
+            }
         }
     }
 
