@@ -1,0 +1,656 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns='http://www.w3.org/2005/Atom' xmlns:apps='http://schemas.google.com/apps/2006'>
+	<title>Mail Filters</title>
+	<id>tag:mail.google.com,2008:filters:1405894576851,1405896869538,1405898488439,1405899138442,1409013555142,1438466465130,1462226469345,1489597976815,1494874704949,1511724755486,1517425394878,1517425565764,1526403470348,1526489151511,1528433164830,1531605410829,3202127841686579492,3644384631097355146,4972176169984236672,5159760191777056792,6134505636961360144,z0000001554933404234*8536987751902176616,z0000001554933669931*2819449380250780055,z0000001555446329365*4467685590220534207,z0000001563068299924*3811396216142445775,z0000001564521894375*8955714027532581969,z0000001582862729821*7930071776858073085,z0000001721077187972*7539341138445402271,z0000001721077483336*3186106423762927111,z0000001721078198879*8157400636568222690,z0000001721078631319*1817929248425814557,z0000001721078928517*9169192696163956239,z0000001721154128682*5274053019848976567,z0000001721155647573*7622344138589966057,z0000001721155888842*1130308727951871252,z0000001727840067172*6721769931937887184,z0000001727976387835*1471847999247226197,z0000001741628641305*3235070644613683205,z0000001754932195203*5239142778847284732,z0000001767304257544*3978214383218571478,z0000001767461509405*6174501990148900683,z0000001771098997445*5115534409372719850,z0000001772391788194*6728131592087821940,z0000001778447018042*2759991583950208225,z0000001781977850843*0399998144282560179,z0000001781977989203*8228485118951208575,z0000001782081434591*0164424431880621282,z0000001784396429497*3775159089633370972,z0000001785599540781*1253290831579485284,z0000001785777224576*4257545618598682652,z0000001786383451973*8630228312774364064,z0000001786485169171*6845888432557023159,z0000001786486281780*6630231089392720669,z0000001786486983006*4369094645486810381</id>
+	<updated>2026-08-12T16:01:04Z</updated>
+	<author>
+		<name>marc condon</name>
+		<email>marc@rocketsredglare.com</email>
+	</author>
+	
+	
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001786554935199</id>
+		<updated>2026-08-12T17:15:50Z</updated>
+		<content></content>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='sfdjango.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1405896869538</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='-&quot;google.com&quot; -&quot;youtube.com&quot; -&quot;kp.org&quot; -&quot;wellsfargo.com&quot; -&quot;circle7.tech&quot; -&quot;t-mobile.com&quot; -&quot;bayclubs.com&quot; -&quot;openai.com&quot; -&quot;lyftmail.com&quot; -&quot;recology.com&quot; -&quot;usaa.com&quot; -&quot;indeed.com&quot;'/>
+		<apps:property name='label' value='marc@rocketsredglare.com'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1405894576851</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='forwardTo' value='fogcitymarathoner@gmail.com'/>
+		<apps:property name='from' value='-&quot;linkedin.com&quot;'/>
+		<apps:property name='label' value='marc@sfdjango.com'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='sfdjango.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1405898488439</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='Ameritrade'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/ameritrade'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1405899138442</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='monique@fogtest.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1409013555142</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='ebay.com'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/Ebay'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1438466465130</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='cybercoders'/>
+		<apps:property name='label' value='Jobs/cybercoders'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1462226469345</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='[GitHub]'/>
+		<apps:property name='label' value='marc@fogtest.com/Github'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1489597976815</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='alerts@notify.wellsfargo.com'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/wells fargo'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1494874704949</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='no-reply-aws@amazon.com'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/aws'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1511724755486</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='myhealthonline@sutterhealth.org'/>
+		<apps:property name='label' value='Health Care'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1517425394878</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='udacity'/>
+		<apps:property name='label' value='Udacity'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1517425565764</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='lyft'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/lyft'/>
+		<apps:property name='shouldArchive' value='true'/>
+		<apps:property name='shouldMarkAsRead' value='true'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1526403470348</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='bayclubs.com'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/bayclub'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='-&quot;Your Bay Club Statement&quot;'/>
+		<apps:property name='to' value='marc@rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1526489151511</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='godaddy.com'/>
+		<apps:property name='label' value='marc@fogtest.com/Godaddy'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1528433164830</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='mindlance.com'/>
+		<apps:property name='label' value='Jobs/Mindlance - Cisco'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:1531605410829</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='beeline'/>
+		<apps:property name='label' value='Jobs/Mindlance - Cisco'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:3202127841686579492</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='glassdoor.com'/>
+		<apps:property name='label' value='marc@sfdjango.com/Glass Door'/>
+		<apps:property name='shouldMarkAsRead' value='true'/>
+		<apps:property name='shouldNeverMarkAsImportant' value='true'/>
+		<apps:property name='shouldTrash' value='true'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:3644384631097355146</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='accenture.com'/>
+		<apps:property name='label' value='Jobs/Intelliswift - Uber'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:4972176169984236672</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='iqn.com'/>
+		<apps:property name='label' value='Jobs/Intelliswift - Uber'/>
+		<apps:property name='shouldArchive' value='true'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:5159760191777056792</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='usaa.com'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/USAA'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:6134505636961360144</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='intelliswift.com'/>
+		<apps:property name='label' value='Jobs/Intelliswift - Uber'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001554933404234*8536987751902176616</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='agilees.com'/>
+		<apps:property name='label' value='Jobs/cisco - wipro long term'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001554933669931*2819449380250780055</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='aesinc.us.com'/>
+		<apps:property name='label' value='Jobs/cisco - wipro long term'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001555446329365*4467685590220534207</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='t-mobile'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/tmobile'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001563068299924*3811396216142445775</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='tsdates'/>
+		<apps:property name='shouldTrash' value='true'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001564521894375*8955714027532581969</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='payments-noreply@google.com'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/google gcloud'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001582862729821*7930071776858073085</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='recology.com'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/Recology'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001721077187972*7539341138445402271</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='quora'/>
+		<apps:property name='label' value='marc@fogtest.com/quora'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@fogtest.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001721077483336*3186106423762927111</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='tdameritrade.com'/>
+		<apps:property name='label' value='marc@fogtest.com/TD Ameritrade'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@fogtest.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001721078198879*8157400636568222690</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='indeed.com'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/indeed'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001721078631319*1817929248425814557</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='label' value='monique@fogtest.com'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='monique@fogtest.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001721078928517*9169192696163956239</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='linkedin.com -&quot;Job Alerts&quot;'/>
+		<apps:property name='label' value='marc@sfdjango.com/linkedin'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@sfdjango.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001721154128682*5274053019848976567</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='amazon.com'/>
+		<apps:property name='label' value='marc@fogtest.com/Amazon'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='-&quot;ORDERED:&quot;'/>
+		<apps:property name='to' value='marc@fogtest.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001721155647573*7622344138589966057</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='primevideo'/>
+		<apps:property name='label' value='marc@fogtest.com/Amazon'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@fogtest.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001721155888842*1130308727951871252</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='amazonmusic'/>
+		<apps:property name='label' value='marc@fogtest.com/Amazon'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@fogtest.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001727840067172*6721769931937887184</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='medium.com'/>
+		<apps:property name='label' value='marc@sfdjango.com/medium'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001727976387835*1471847999247226197</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='label' value='marc@fogtest.com'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='-&quot;ORDERED:&quot;'/>
+		<apps:property name='to' value='fogtest.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001741628641305*3235070644613683205</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='voice-noreply@google.com'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/Google Voice'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001754932195203*5239142778847284732</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='github.com'/>
+		<apps:property name='label' value='marc@fogtest.com/Github/Mopo'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='[mopolife'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001767304257544*3978214383218571478</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='bayclubs.com'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/bayclub/Billing Statement'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='Your Bay Club Statement is Now Available'/>
+		<apps:property name='to' value='marc@rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001767461509405*6174501990148900683</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='apexsystems.com'/>
+		<apps:property name='label' value='marc@sfdjango.com/Apex Systems'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@sfdjango.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001771098997445*5115534409372719850</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='jobalerts-noreply@linkedin.com'/>
+		<apps:property name='label' value='marc@sfdjango.com/linkedin/Job Alerts'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@sfdjango.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001772391788194*6728131592087821940</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='openai.com'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/OpenAI'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001778447018042*2759991583950208225</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='lensa.com'/>
+		<apps:property name='label' value='marc@sfdjango.com/Lensa'/>
+		<apps:property name='shouldArchive' value='true'/>
+		<apps:property name='shouldMarkAsRead' value='true'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001781977850843*0399998144282560179</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='marketplace.aws'/>
+		<apps:property name='shouldTrash' value='true'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001781977989203*8228485118951208575</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='store-news@amazon.com'/>
+		<apps:property name='shouldTrash' value='true'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001782081434591*0164424431880621282</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='microsoft.com'/>
+		<apps:property name='shouldTrash' value='true'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='invoice'/>
+		<apps:property name='to' value='marc@fogtest.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001784396429497*3775159089633370972</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='shipment-tracking@amazon.com OR order-update@amazon.com OR return@amazon.com OR auto-confirm@amazon.com'/>
+		<apps:property name='label' value='marc@fogtest.com/Amazon/orders'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001785599540781*1253290831579485284</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='label' value='marc@fogtest.com/Pinecone'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='pinecone'/>
+		<apps:property name='to' value='marc@fogtest.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001785777224576*4257545618598682652</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='circle7.tech'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/Circle7'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001786383451973*8630228312774364064</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='github.com'/>
+		<apps:property name='label' value='marc@fogtest.com/Github/Receipts'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='Payment Reciept'/>
+		<apps:property name='to' value='marc@fogtest.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001786485169171*6845888432557023159</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='kp.org'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/Kaiser'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001786486281780*6630231089392720669</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='youtube.com'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/Youtube'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001786486983006*4369094645486810381</id>
+		<updated>2026-08-12T16:01:04Z</updated>
+		<content></content>
+		<apps:property name='from' value='googleplay-noreply@google.com'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/Google Play'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@rocketsredglare.com'/>
+	</entry>
+</feed>
