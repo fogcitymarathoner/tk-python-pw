@@ -31,13 +31,17 @@ async function run() {
     console.log(`[dev.js] Found available development port: ${port}`);
 
     // Create the merged configuration JSON to override build.devUrl
-    const configOverride = JSON.stringify({
+    let configOverride = JSON.stringify({
       build: {
         devUrl: `http://localhost:${port}`
       }
     });
 
     const isWindows = process.platform === 'win32';
+    if (isWindows) {
+      configOverride = `"${configOverride.replace(/"/g, '\\"')}"`;
+    }
+
     const npxCmd = isWindows ? 'npx.cmd' : 'npx';
 
     console.log(`[dev.js] Starting Tauri development server with dynamically assigned port ${port}...`);

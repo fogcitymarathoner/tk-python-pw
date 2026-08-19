@@ -25,6 +25,15 @@ export default function App() {
   // Drag and drop state (Pointer-based)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
+  // Selected custom file path (null means default mailFilters.xml)
+  const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
+
+  // Helper to extract the filename from a full path
+  const getFileName = (path: string) => {
+    const parts = path.split(/[/\\]/);
+    return parts[parts.length - 1];
+  };
+
   // Check if running inside Tauri, and load filters on startup
   useEffect(() => {
     const detectAndLoad = async () => {
@@ -80,15 +89,22 @@ export default function App() {
       const serialized = serializeXml(headers, entries, footer);
 
       if (isTauriApp) {
-        await invoke("write_filters_file", { content: serialized });
-        setStatus("saved");
-        setStatusMsg("Successfully saved mailFilters.xml! (Backup created)");
-        setToastMsg("Written to mailFilters.xml and backed up as mailFilters.xml.bak!");
+        if (currentFilePath) {
+          await invoke("write_filters_to_path", { path: currentFilePath, content: serialized });
+          setStatus("saved");
+          setStatusMsg(`Successfully saved ${getFileName(currentFilePath)}! (Backup created)`);
+          setToastMsg(`Written to ${getFileName(currentFilePath)} and backed up!`);
+        } else {
+          await invoke("write_filters_file", { content: serialized });
+          setStatus("saved");
+          setStatusMsg("Successfully saved mailFilters.xml! (Backup created)");
+          setToastMsg("Written to mailFilters.xml and backed up as mailFilters.xml.bak!");
+        }
         setShowToast(true);
         setTimeout(() => setShowToast(false), 4000);
         setTimeout(() => {
           setStatus("loaded");
-          setStatusMsg("Natively loaded mailFilters.xml");
+          setStatusMsg(currentFilePath ? `Active: ${getFileName(currentFilePath)}` : "Natively loaded mailFilters.xml");
         }, 3000);
       } else {
         // Fallback file download for browser
@@ -96,7 +112,7 @@ export default function App() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = "mailFilters.xml";
+        a.download = currentFilePath ? getFileName(currentFilePath) : "mailFilters.xml";
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -109,11 +125,113 @@ export default function App() {
         setTimeout(() => setShowToast(false), 4000);
         setTimeout(() => {
           setStatus("loaded");
-          setStatusMsg("In-browser active session");
+          setStatusMsg(currentFilePath ? `Active: ${getFileName(currentFilePath)}` : "In-browser active session");
         }, 3000);
       }
     } catch (err: any) {
       console.error("Save error:", err);
+      setStatus("error");
+      setStatusMsg(`Failed to save: ${err}`);
+    }
+  };
+
+  // Open any custom XML file from local drive
+  const handleOpenFile = async () => {
+    if (!isTauriApp) {
+      const fileInput = document.getElementById("browser-file-upload") as HTMLInputElement;
+      fileInput?.click();
+      return;
+    }
+
+    try {
+      setStatus("loading");
+      setStatusMsg("Selecting XML file...");
+      const selectedPath = await invoke<string | null>("select_filters_file");
+      if (!selectedPath) {
+        if (entries.length > 0) {
+          setStatus("loaded");
+          setStatusMsg(currentFilePath ? `Active: ${getFileName(currentFilePath)}` : "Natively loaded mailFilters.xml");
+        } else {
+          setStatus("error");
+          setStatusMsg("No file selected.");
+        }
+        return;
+      }
+
+      setStatusMsg(`Reading ${getFileName(selectedPath)}...`);
+      const content = await invoke<string>("read_filters_from_path", { path: selectedPath });
+      
+      const parsed = parseXml(content);
+      setHeaders(parsed.headers);
+      setFooter(parsed.footer);
+      setEntries(parsed.entries);
+      setCurrentFilePath(selectedPath);
+      if (parsed.entries.length > 0) {
+        setSelectedIdx(0);
+      } else {
+        setSelectedIdx(null);
+      }
+      setStatus("loaded");
+      setStatusMsg(`Loaded ${getFileName(selectedPath)}`);
+    } catch (err: any) {
+      console.error("Open file error:", err);
+      setStatus("error");
+      setStatusMsg(`Failed to open: ${err}`);
+    }
+  };
+
+  // Save the current filter list to a brand new path location
+  const handleSaveAs = async () => {
+    try {
+      const defaultName = currentFilePath ? getFileName(currentFilePath) : "mailFilters.xml";
+      const serialized = serializeXml(headers, entries, footer);
+
+      if (isTauriApp) {
+        setStatus("loading");
+        setStatusMsg("Selecting save path...");
+        const savePath = await invoke<string | null>("select_save_path", { defaultName });
+        if (!savePath) {
+          setStatus("loaded");
+          setStatusMsg(currentFilePath ? `Active: ${getFileName(currentFilePath)}` : "Natively loaded mailFilters.xml");
+          return;
+        }
+
+        setStatusMsg(`Saving to ${getFileName(savePath)}...`);
+        await invoke("write_filters_to_path", { path: savePath, content: serialized });
+        
+        setCurrentFilePath(savePath);
+        setStatus("saved");
+        setStatusMsg(`Successfully saved as ${getFileName(savePath)}!`);
+        setToastMsg(`Saved to ${getFileName(savePath)}!`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 4000);
+        setTimeout(() => {
+          setStatus("loaded");
+          setStatusMsg(`Active: ${getFileName(savePath)}`);
+        }, 3000);
+      } else {
+        const blob = new Blob([serialized], { type: "application/xml" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = defaultName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        setStatus("saved");
+        setStatusMsg("File downloaded successfully!");
+        setToastMsg("Filter file downloaded successfully!");
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 4000);
+        setTimeout(() => {
+          setStatus("loaded");
+          setStatusMsg("In-browser active session");
+        }, 3000);
+      }
+    } catch (err: any) {
+      console.error("Save As error:", err);
       setStatus("error");
       setStatusMsg(`Failed to save: ${err}`);
     }
@@ -206,6 +324,7 @@ export default function App() {
           setHeaders(parsed.headers);
           setFooter(parsed.footer);
           setEntries(parsed.entries);
+          setCurrentFilePath(file.name);
           if (parsed.entries.length > 0) {
             setSelectedIdx(0);
           }
@@ -400,8 +519,26 @@ export default function App() {
           <span className={`status-badge ${status === "saved" ? "success" : status === "modified" ? "warning" : ""}`}>
             {statusMsg}
           </span>
+          {currentFilePath && (
+            <span className="file-path-badge" title={currentFilePath}>
+              📍 {getFileName(currentFilePath)}
+            </span>
+          )}
         </div>
         <div className="header-actions">
+          {/* Always allow opening a file */}
+          <button className="btn" onClick={handleOpenFile}>
+            📂 Open File...
+          </button>
+          
+          <input 
+            type="file" 
+            id="browser-file-upload" 
+            accept=".xml" 
+            onChange={handleFileUpload} 
+            style={{ display: "none" }} 
+          />
+
           {entries.length > 0 && (
             <>
               <button className="btn" onClick={handleGenerateReport}>
@@ -409,6 +546,9 @@ export default function App() {
               </button>
               <button className="btn btn-accent" onClick={handleAddFilter}>
                 ➕ Add New Filter
+              </button>
+              <button className="btn btn-accent" onClick={handleSaveAs}>
+                💾 Save As...
               </button>
               <button className="btn btn-primary" onClick={handleSave}>
                 💾 Save Changes
@@ -423,13 +563,12 @@ export default function App() {
         {entries.length === 0 ? (
           <div className="empty-state" style={{ width: "100%" }}>
             <h3>No Active Filter Data Loaded</h3>
-            <p>We are waiting to parse a valid `mailFilters.xml` file.</p>
-            {!isTauriApp && (
-              <div className="file-input-wrapper">
-                <button className="btn btn-accent">📂 Choose mailFilters.xml</button>
-                <input type="file" accept=".xml" onChange={handleFileUpload} />
-              </div>
-            )}
+            <p>We are waiting to parse a valid `.xml` file.</p>
+            <div className="file-input-wrapper">
+              <button className="btn btn-accent" onClick={handleOpenFile}>
+                📂 Open XML File...
+              </button>
+            </div>
             {isTauriApp && status === "loading" && (
               <p style={{ fontStyle: "italic" }}>Scanning filesystem...</p>
             )}
