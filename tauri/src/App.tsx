@@ -1478,11 +1478,26 @@ function App() {
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span
-                          style={{
-                            fontWeight: "bold",
-                            fontSize: "1em",
-                            color: isTodayActive ? "var(--color-purple)" : "var(--text-main)"
-                          }}
+                          style={
+                            isTodayActive
+                              ? {
+                                  fontWeight: "bold",
+                                  fontSize: "0.95em",
+                                  color: "#000000",
+                                  backgroundColor: "#ffffff",
+                                  borderRadius: "50%",
+                                  width: "24px",
+                                  height: "24px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }
+                              : {
+                                  fontWeight: "bold",
+                                  fontSize: "1em",
+                                  color: "var(--text-main)",
+                                }
+                          }
                         >
                           {cellDay}
                         </span>
