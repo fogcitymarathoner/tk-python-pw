@@ -165,6 +165,7 @@ async fn add_subscription(
     amount: String,
     due_date: String,
     memo: String,
+    period: String,
     firebase: State<'_, FirebaseState>,
 ) -> Result<String, String> {
     if !firebase.0.is_available() {
@@ -176,6 +177,7 @@ async fn add_subscription(
         "amount": amount,
         "dueDate": due_date,
         "memo": memo,
+        "period": period,
     });
     firebase.0.push(&format!("users/{}/subscriptions", uid), &data).await
 }
@@ -189,6 +191,7 @@ async fn update_subscription(
     amount: String,
     due_date: String,
     memo: String,
+    period: String,
     firebase: State<'_, FirebaseState>,
 ) -> Result<(), String> {
     if !firebase.0.is_available() {
@@ -200,6 +203,7 @@ async fn update_subscription(
         "amount": amount,
         "dueDate": due_date,
         "memo": memo,
+        "period": period,
     });
     firebase.0.update(&format!("users/{}/subscriptions/{}", uid, id), &data).await
 }

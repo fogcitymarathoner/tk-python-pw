@@ -50,7 +50,13 @@ interface SubscriptionRecord {
   amount: string;
   dueDate: string;
   memo: string;
+  period?: "monthly" | "annual";
 }
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
 
 function App() {
   // --- Global App State ---
@@ -81,6 +87,7 @@ function App() {
   const [pwLength, setPwLength] = useState<12 | 14>(12);
   const [pwOriginal, setPwOriginal] = useState<string>("");
   const [copiedText, setCopiedText] = useState<boolean>(false);
+  const [pwSortAscending, setPwSortAscending] = useState<boolean>(true);
 
   // --- Subscriptions State ---
   const [subscriptionsMap, setSubscriptionsMap] = useState<Record<string, SubscriptionRecord>>({});
@@ -91,6 +98,8 @@ function App() {
   const [subAmount, setSubAmount] = useState<string>("");
   const [subDueDate, setSubDueDate] = useState<string>("");
   const [subMemo, setSubMemo] = useState<string>("");
+  const [subPeriod, setSubPeriod] = useState<"monthly" | "annual">("monthly");
+  const [subDueMonth, setSubDueMonth] = useState<string>("January");
   const [subSortAscending, setSubSortAscending] = useState<boolean>(true);
   const [subViewMode, setSubViewMode] = useState<"list" | "calendar">("list");
   const [calMonth, setCalMonth] = useState<number>(new Date().getMonth());
@@ -363,8 +372,35 @@ function App() {
     setSubName(record.name);
     setSubAccount(record.account);
     setSubAmount(record.amount);
-    setSubDueDate(record.dueDate);
     setSubMemo(record.memo);
+
+    const period = record.period || "monthly";
+    setSubPeriod(period);
+
+    if (period === "annual") {
+      const matchedMonth = MONTHS.find(m => record.dueDate.toLowerCase().includes(m.toLowerCase()));
+      if (matchedMonth) {
+        setSubDueMonth(matchedMonth);
+        const match = record.dueDate.match(/\d+/);
+        if (match) {
+          setSubDueDate(getOrdinalDay(parseInt(match[0], 10)));
+        } else {
+          setSubDueDate("1st");
+        }
+      } else {
+        setSubDueMonth("January");
+        const match = record.dueDate.match(/\d+/);
+        if (match) {
+          setSubDueDate(getOrdinalDay(parseInt(match[0], 10)));
+        } else {
+          setSubDueDate("1st");
+        }
+      }
+    } else {
+      setSubDueMonth("January");
+      setSubDueDate(record.dueDate);
+    }
+
     setSubModalMode("edit");
     setIsSubModalOpen(true);
   };
@@ -374,7 +410,9 @@ function App() {
     setSubName("");
     setSubAccount("");
     setSubAmount("");
-    setSubDueDate("");
+    setSubPeriod("monthly");
+    setSubDueMonth("January");
+    setSubDueDate("1st");
     setSubMemo("");
     setSubModalMode("add");
     setIsSubModalOpen(true);
@@ -390,14 +428,19 @@ function App() {
       alert("Service Name is required.");
       return;
     }
+    const dueDateToStore = subPeriod === "annual"
+      ? `${subDueMonth} ${subDueDate}`
+      : subDueDate;
+
     try {
       await invoke("add_subscription", {
         uid: userUid,
         name: subName,
         account: subAccount,
         amount: subAmount,
-        dueDate: subDueDate,
+        dueDate: dueDateToStore,
         memo: subMemo,
+        period: subPeriod,
       });
       setStatusMsg(`✅ Subscription '${subName}' added`);
       closeSubModal();
@@ -413,6 +456,10 @@ function App() {
       alert("Service Name is required.");
       return;
     }
+    const dueDateToStore = subPeriod === "annual"
+      ? `${subDueMonth} ${subDueDate}`
+      : subDueDate;
+
     try {
       await invoke("update_subscription", {
         uid: userUid,
@@ -420,8 +467,9 @@ function App() {
         name: subName,
         account: subAccount,
         amount: subAmount,
-        dueDate: subDueDate,
+        dueDate: dueDateToStore,
         memo: subMemo,
+        period: subPeriod,
       });
       setStatusMsg(`✅ Subscription '${subName}' updated`);
       closeSubModal();
@@ -966,14 +1014,22 @@ function App() {
   };
 
   // --- Filtering computations ---
-  const filteredPasswords = Object.entries(passwordsMap).filter(([_, record]) => {
-    const term = pwSearch.toLowerCase();
-    return (
-      record.vendor.toLowerCase().includes(term) ||
-      record.account.toLowerCase().includes(term) ||
-      (record.memo || "").toLowerCase().includes(term)
-    );
-  });
+  const filteredPasswords = Object.entries(passwordsMap)
+    .filter(([_, record]) => {
+      const term = pwSearch.toLowerCase();
+      return (
+        record.vendor.toLowerCase().includes(term) ||
+        record.account.toLowerCase().includes(term) ||
+        (record.memo || "").toLowerCase().includes(term)
+      );
+    })
+    .sort((a, b) => {
+      const vendorA = a[1].vendor.toLowerCase();
+      const vendorB = b[1].vendor.toLowerCase();
+      if (vendorA < vendorB) return pwSortAscending ? -1 : 1;
+      if (vendorA > vendorB) return pwSortAscending ? 1 : -1;
+      return 0;
+    });
 
   const getOrdinalDay = (n: number): string => {
     const s = ["th", "st", "nd", "rd"];
@@ -1047,6 +1103,15 @@ function App() {
           if (!isNaN(parsed)) {
             const d = new Date(parsed);
             return d.getDate() === dayNum && d.getMonth() === calMonth && d.getFullYear() === calYear;
+          }
+        }
+
+        // If it's an annual subscription, check if the month matches
+        const isAnnual = sub.period === "annual";
+        if (isAnnual) {
+          const currentMonthName = MONTHS[calMonth].toLowerCase();
+          if (!clean.toLowerCase().includes(currentMonthName)) {
+            return false;
           }
         }
 
@@ -1193,7 +1258,31 @@ function App() {
             <table>
               <thead>
                 <tr>
-                  <th>Vendor</th>
+                  <th
+                    onClick={() => setPwSortAscending(!pwSortAscending)}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                    title="Click to sort by vendor"
+                  >
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      Vendor
+                      <button
+                        className="sort-btn"
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: 0,
+                          cursor: "pointer",
+                          color: "inherit",
+                          font: "inherit",
+                          display: "inline-flex",
+                          alignItems: "center"
+                        }}
+                        aria-label="Sort by vendor"
+                      >
+                        {pwSortAscending ? "▲" : "▼"}
+                      </button>
+                    </div>
+                  </th>
                   <th>Account</th>
                   <th>Password</th>
                   <th>Memo</th>
@@ -1266,6 +1355,7 @@ function App() {
                     <th>Service</th>
                     <th>Account</th>
                     <th>Amount</th>
+                    <th>Period</th>
                     <th
                       onClick={() => setSubSortAscending(!subSortAscending)}
                       style={{ cursor: "pointer", userSelect: "none" }}
@@ -1287,13 +1377,14 @@ function App() {
                       <td>{r.name}</td>
                       <td>{r.account}</td>
                       <td>{r.amount}</td>
+                      <td>{r.period ? r.period.charAt(0).toUpperCase() + r.period.slice(1) : "Monthly"}</td>
                       <td>{r.dueDate}</td>
                       <td>{r.memo}</td>
                     </tr>
                   ))}
                   {filteredSubscriptions.length === 0 && (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                      <td colSpan={6} style={{ textAlign: "center", color: "var(--text-muted)" }}>
                         No subscriptions found
                       </td>
                     </tr>
@@ -1742,7 +1833,34 @@ function App() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Due Date:</label>
+                  <label>Period:</label>
+                  <select
+                    className="input-field"
+                    value={subPeriod}
+                    onChange={(e) => setSubPeriod(e.target.value as "monthly" | "annual")}
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="annual">Annual</option>
+                  </select>
+                </div>
+                {subPeriod === "annual" && (
+                  <div className="form-group">
+                    <label>Due Month:</label>
+                    <select
+                      className="input-field"
+                      value={subDueMonth}
+                      onChange={(e) => setSubDueMonth(e.target.value)}
+                    >
+                      {MONTHS.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="form-group">
+                  <label>{subPeriod === "annual" ? "Due Day:" : "Due Date:"}</label>
                   <select
                     className="input-field"
                     value={subDueDate}

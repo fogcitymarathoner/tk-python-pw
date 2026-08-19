@@ -16,7 +16,6 @@
 	
 	
 	
-	
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
@@ -43,7 +42,7 @@
 		<category term='filter'></category>
 		<title>Mail Filter</title>
 		<id>tag:mail.google.com,2008:filter:z0000001786560668030</id>
-		<updated>2026-08-17T21:34:16Z</updated>
+		<updated>2026-08-13T00:09:18Z</updated>
 		<content></content>
 		<apps:property name='from' value='-&quot;amazon&quot; -&quot;github&quot; -&quot;godaddy&quot; -&quot;primevideo&quot; -&quot;quora&quot; -&quot;udacity&quot; -&quot;google&quot;'/>
 		<apps:property name='label' value='marc@fogtest.com'/>
@@ -55,22 +54,10 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001784396429497*3775159089633370972</id>
-		<updated>2026-08-12T23:32:30Z</updated>
-		<content></content>
-		<apps:property name='from' value='shipment-tracking AND amazon OR order-update AND amazon OR return  AND amazon OR auto-confirm AND amazon'/>
-		<apps:property name='label' value='marc@fogtest.com/Amazon/orders'/>
-		<apps:property name='sizeOperator' value='s_sl'/>
-		<apps:property name='sizeUnit' value='s_smb'/>
-		<apps:property name='to' value='fogtest.com'/>
-	</entry>
-	<entry>
-		<category term='filter'></category>
-		<title>Mail Filter</title>
 		<id>tag:mail.google.com,2008:filter:z0000001721154128682*5274053019848976567</id>
-		<updated>2026-08-17T21:34:45Z</updated>
+		<updated>2026-08-14T17:13:07Z</updated>
 		<content></content>
-		<apps:property name='from' value='amazon -&quot;shipment&quot; -&quot;tracking&quot; -&quot;amazonaws&quot;'/>
+		<apps:property name='from' value='amazon -&quot;shipment&quot; -&quot;tracking&quot;'/>
 		<apps:property name='label' value='marc@fogtest.com/Amazon'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
@@ -80,11 +67,11 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001787002590057</id>
-		<updated>2026-08-17T21:40:56Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001784396429497*3775159089633370972</id>
+		<updated>2026-08-12T23:32:30Z</updated>
 		<content></content>
-		<apps:property name='from' value='amazonaws'/>
-		<apps:property name='label' value='marc@fogtest.com/Amazon/AWS'/>
+		<apps:property name='from' value='shipment-tracking AND amazon OR order-update AND amazon OR return  AND amazon OR auto-confirm AND amazon'/>
+		<apps:property name='label' value='marc@fogtest.com/Amazon/orders'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
 		<apps:property name='to' value='fogtest.com'/>
