@@ -8,15 +8,77 @@ import {
 import "./App.css";
 
 export default function App() {
-  const [entries, setEntries] = useState<FilterEntry[]>([]);
-  const [headers, setHeaders] = useState<string>("");
-  const [footer, setFooter] = useState<string>("");
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  // Check for cached XML in localStorage to enable instant loading on sleep-wake/restart
+  const [entries, setEntries] = useState<FilterEntry[]>(() => {
+    const cached = localStorage.getItem("tauri_email_filters_cached_xml");
+    if (cached) {
+      try {
+        return parseXml(cached).entries;
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  const [headers, setHeaders] = useState<string>(() => {
+    const cached = localStorage.getItem("tauri_email_filters_cached_xml");
+    if (cached) {
+      try {
+        return parseXml(cached).headers;
+      } catch (e) {
+        return "";
+      }
+    }
+    return "";
+  });
+
+  const [footer, setFooter] = useState<string>(() => {
+    const cached = localStorage.getItem("tauri_email_filters_cached_xml");
+    if (cached) {
+      try {
+        return parseXml(cached).footer;
+      } catch (e) {
+        return "";
+      }
+    }
+    return "";
+  });
+
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(() => {
+    const cached = localStorage.getItem("tauri_email_filters_cached_xml");
+    if (cached) {
+      try {
+        return parseXml(cached).entries.length > 0 ? 0 : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
   const [searchTerm, setSearchTerm] = useState("");
-  
   const [isTauriApp, setIsTauriApp] = useState(true);
-  const [status, setStatus] = useState<"loading" | "loaded" | "modified" | "saved" | "error">("loading");
-  const [statusMsg, setStatusMsg] = useState("Initializing application...");
+
+  const [status, setStatus] = useState<"loading" | "loaded" | "modified" | "saved" | "error">(() => {
+    const cachedXml = localStorage.getItem("tauri_email_filters_cached_xml");
+    if (cachedXml) {
+      const cachedStatus = localStorage.getItem("tauri_email_filters_cached_status") as any;
+      if (cachedStatus) return cachedStatus;
+      return "loaded";
+    }
+    return "loading";
+  });
+
+  const [statusMsg, setStatusMsg] = useState<string>(() => {
+    const cachedXml = localStorage.getItem("tauri_email_filters_cached_xml");
+    if (cachedXml) {
+      const cachedMsg = localStorage.getItem("tauri_email_filters_cached_status_msg");
+      if (cachedMsg) return cachedMsg;
+      return "Session restored";
+    }
+    return "Initializing application...";
+  });
   
   // Toast notifications for explicit saves
   const [showToast, setShowToast] = useState(false);
@@ -26,13 +88,38 @@ export default function App() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Selected custom file path (null means default mailFilters.xml)
-  const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
+  const [currentFilePath, setCurrentFilePath] = useState<string | null>(() => {
+    return localStorage.getItem("tauri_email_filters_current_path");
+  });
 
   // Helper to extract the filename from a full path
   const getFileName = (path: string) => {
     const parts = path.split(/[/\\]/);
     return parts[parts.length - 1];
   };
+
+  // Keep the localStorage cache fully in sync with the state variables
+  useEffect(() => {
+    if (entries.length > 0) {
+      const serialized = serializeXml(headers, entries, footer);
+      localStorage.setItem("tauri_email_filters_cached_xml", serialized);
+      localStorage.setItem("tauri_email_filters_cached_status", status);
+      localStorage.setItem("tauri_email_filters_cached_status_msg", statusMsg);
+    } else {
+      localStorage.removeItem("tauri_email_filters_cached_xml");
+      localStorage.removeItem("tauri_email_filters_cached_status");
+      localStorage.removeItem("tauri_email_filters_cached_status_msg");
+    }
+  }, [entries, headers, footer, status, statusMsg]);
+
+  // Sync the currentFilePath with localStorage
+  useEffect(() => {
+    if (currentFilePath) {
+      localStorage.setItem("tauri_email_filters_current_path", currentFilePath);
+    } else {
+      localStorage.removeItem("tauri_email_filters_current_path");
+    }
+  }, [currentFilePath]);
 
   // Check if running inside Tauri, and load filters on startup
   useEffect(() => {
@@ -42,23 +129,50 @@ export default function App() {
       setIsTauriApp(isTauri);
 
       if (isTauri) {
-        try {
-          setStatus("loading");
-          setStatusMsg("Loading mailFilters.xml...");
-          const content = await invoke<string>("read_filters_file");
-          const parsed = parseXml(content);
-          setHeaders(parsed.headers);
-          setFooter(parsed.footer);
-          setEntries(parsed.entries);
-          if (parsed.entries.length > 0) {
-            setSelectedIdx(0);
+        const storedPath = localStorage.getItem("tauri_email_filters_current_path");
+        const hasCache = localStorage.getItem("tauri_email_filters_cached_xml") !== null;
+        const cachedStatus = localStorage.getItem("tauri_email_filters_cached_status");
+
+        // Only reload from disk if there are NO unsaved/modified changes in the cache.
+        // This prevents overwriting any unsaved session on laptop wake-from-sleep.
+        if (!hasCache || cachedStatus !== "modified") {
+          try {
+            if (storedPath) {
+              const content = await invoke<string>("read_filters_from_path", { path: storedPath });
+              const parsed = parseXml(content);
+              setHeaders(parsed.headers);
+              setFooter(parsed.footer);
+              setEntries(parsed.entries);
+              if (parsed.entries.length > 0) {
+                setSelectedIdx(0);
+              }
+              setStatus("loaded");
+              setStatusMsg(`Loaded ${getFileName(storedPath)}`);
+            } else {
+              const content = await invoke<string>("read_filters_file");
+              const parsed = parseXml(content);
+              setHeaders(parsed.headers);
+              setFooter(parsed.footer);
+              setEntries(parsed.entries);
+              if (parsed.entries.length > 0) {
+                setSelectedIdx(0);
+              }
+              setStatus("loaded");
+              setStatusMsg("Natively loaded mailFilters.xml");
+            }
+          } catch (err: any) {
+            console.error("Failed to load natively via Tauri:", err);
+            if (hasCache) {
+              // Gracefully handle wake-from-sleep disk lag or removed files by keeping cache active
+              setStatusMsg(`Session restored. (Failed to sync disk: ${err})`);
+            } else {
+              setStatus("error");
+              setStatusMsg(`Failed to load: ${err}`);
+            }
           }
-          setStatus("loaded");
-          setStatusMsg("Natively loaded mailFilters.xml");
-        } catch (err: any) {
-          console.error("Failed to load natively via Tauri:", err);
-          setStatus("error");
-          setStatusMsg(`Failed to load: ${err}`);
+        } else {
+          // Cache exists and is modified. We keep the modified session active!
+          setStatusMsg("Unsaved changes restored from last active session");
         }
       } else {
         // We are in a standard browser
@@ -363,6 +477,36 @@ export default function App() {
 
   // Add a brand new empty filter
   const handleAddFilter = () => {
+    let targetIdx = 0;
+
+    if (selectedIdx !== null) {
+      targetIdx = selectedIdx;
+    } else if (entries.length > 0) {
+      // No filter is selected, prompt the user for the filter number to insert in front of
+      const input = prompt(
+        `No filter is selected.\nEnter the filter number (1 to ${entries.length}) that you want to insert the new filter in front of:\n(Enter "1" for the beginning, or cancel to abort)`
+      );
+      
+      // If user cancelled, abort the operation
+      if (input === null) return;
+      
+      const trimmed = input.trim();
+      if (trimmed === "") {
+        return;
+      }
+      
+      const parsedNum = parseInt(trimmed, 10);
+      if (isNaN(parsedNum) || parsedNum < 1 || parsedNum > entries.length) {
+        alert(`Invalid filter number! Please enter a number between 1 and ${entries.length}.`);
+        return;
+      }
+      
+      targetIdx = parsedNum - 1; // Convert 1-based to 0-based index
+    } else {
+      // Fallback: if there are no entries at all, insert at index 0
+      targetIdx = 0;
+    }
+
     const newEntry: FilterEntry = {
       id: `tag:mail.google.com,2008:filter:z000000${Date.now()}`,
       title: "Mail Filter",
@@ -374,8 +518,10 @@ export default function App() {
       }
     };
 
-    setEntries([newEntry, ...entries]);
-    setSelectedIdx(0);
+    const updated = [...entries];
+    updated.splice(targetIdx, 0, newEntry);
+    setEntries(updated);
+    setSelectedIdx(targetIdx);
     setStatus("modified");
     setStatusMsg("Unsaved changes present");
   };

@@ -141,6 +141,22 @@ button:disabled, .btn:disabled {
   color: var(--color-green);
 }
 
+.status-badge.active {
+  color: var(--color-green);
+  border: 1px solid var(--color-green);
+  background-color: rgba(166, 227, 161, 0.1);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.status-badge.inactive {
+  color: var(--color-red);
+  border: 1px solid var(--color-red);
+  background-color: rgba(243, 139, 168, 0.1);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
 /* Notebook / Tabs Style */
 .notebook-tabs {
   display: flex;

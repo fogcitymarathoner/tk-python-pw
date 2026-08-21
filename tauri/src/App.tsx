@@ -51,6 +51,7 @@ interface SubscriptionRecord {
   dueDate: string;
   memo: string;
   period?: "monthly" | "annual";
+  status?: "active" | "inactive";
 }
 
 const MONTHS = [
@@ -104,6 +105,8 @@ function App() {
   const [subViewMode, setSubViewMode] = useState<"list" | "calendar">("list");
   const [calMonth, setCalMonth] = useState<number>(new Date().getMonth());
   const [calYear, setCalYear] = useState<number>(new Date().getFullYear());
+  const [subStatus, setSubStatus] = useState<"active" | "inactive">("active");
+  const [subStatusFilter, setSubStatusFilter] = useState<"active" | "inactive" | "all">("active");
 
   // --- Expenses State ---
   const [categories, setCategories] = useState<Category[]>([]);
@@ -373,6 +376,7 @@ function App() {
     setSubAccount(record.account);
     setSubAmount(record.amount);
     setSubMemo(record.memo);
+    setSubStatus(record.status || "active");
 
     const period = record.period || "monthly";
     setSubPeriod(period);
@@ -414,6 +418,7 @@ function App() {
     setSubDueMonth("January");
     setSubDueDate("1st");
     setSubMemo("");
+    setSubStatus("active");
     setSubModalMode("add");
     setIsSubModalOpen(true);
   };
@@ -421,6 +426,28 @@ function App() {
   const closeSubModal = () => {
     setIsSubModalOpen(false);
     setSelectedSubId(null);
+  };
+
+  const handleToggleSubscriptionStatus = async (id: string, record: SubscriptionRecord, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextStatus = (record.status || "active") === "active" ? "inactive" : "active";
+    try {
+      await invoke("update_subscription", {
+        uid: userUid,
+        id: id,
+        name: record.name,
+        account: record.account,
+        amount: record.amount,
+        dueDate: record.dueDate,
+        memo: record.memo,
+        period: record.period || "monthly",
+        status: nextStatus,
+      });
+      setStatusMsg(`✅ Subscription '${record.name}' status set to ${nextStatus}`);
+      loadSubscriptions();
+    } catch (err: any) {
+      setStatusMsg(`❌ Error toggling status: ${err}`);
+    }
   };
 
   const handleAddSubscription = async () => {
@@ -441,6 +468,7 @@ function App() {
         dueDate: dueDateToStore,
         memo: subMemo,
         period: subPeriod,
+        status: subStatus,
       });
       setStatusMsg(`✅ Subscription '${subName}' added`);
       closeSubModal();
@@ -470,6 +498,7 @@ function App() {
         dueDate: dueDateToStore,
         memo: subMemo,
         period: subPeriod,
+        status: subStatus,
       });
       setStatusMsg(`✅ Subscription '${subName}' updated`);
       closeSubModal();
@@ -1059,8 +1088,17 @@ function App() {
 
   const filteredSubscriptions = Object.entries(subscriptionsMap)
     .filter(([_, record]) => {
+      // 1. Search term filter
       const term = subSearch.toLowerCase();
-      return record.name.toLowerCase().includes(term) || record.account.toLowerCase().includes(term);
+      const matchesSearch = record.name.toLowerCase().includes(term) || record.account.toLowerCase().includes(term);
+      if (!matchesSearch) return false;
+
+      // 2. Status filter
+      const recordStatus = record.status || "active";
+      if (subStatusFilter !== "all" && recordStatus !== subStatusFilter) {
+        return false;
+      }
+      return true;
     })
     .sort((a, b) => {
       const dayA = parseDueDateToNumber(a[1].dueDate);
@@ -1095,6 +1133,19 @@ function App() {
 
     return Object.entries(subscriptionsMap)
       .filter(([_, sub]) => {
+        // Status Filter should work on calendar grid!
+        const subStatusValue = sub.status || "active";
+        if (subStatusFilter !== "all" && subStatusValue !== subStatusFilter) {
+          return false;
+        }
+
+        // Also apply the search filter on the calendar grid if there's any search term
+        const term = subSearch.toLowerCase();
+        if (term) {
+          const matchesSearch = sub.name.toLowerCase().includes(term) || sub.account.toLowerCase().includes(term);
+          if (!matchesSearch) return false;
+        }
+
         const clean = sub.dueDate.trim();
         
         // Full date match (YYYY-MM-DD or MM/DD/YYYY)
@@ -1343,6 +1394,30 @@ function App() {
               </button>
             </div>
 
+            <div className="view-toggle-group" style={{ marginRight: "10px", display: "flex", gap: "4px" }}>
+              <button
+                className={`tab-btn ${subStatusFilter === "active" ? "active" : ""}`}
+                onClick={() => setSubStatusFilter("active")}
+                style={{ padding: "4px 10px", fontSize: "0.9em" }}
+              >
+                🟢 Active
+              </button>
+              <button
+                className={`tab-btn ${subStatusFilter === "inactive" ? "active" : ""}`}
+                onClick={() => setSubStatusFilter("inactive")}
+                style={{ padding: "4px 10px", fontSize: "0.9em" }}
+              >
+                🔴 Inactive
+              </button>
+              <button
+                className={`tab-btn ${subStatusFilter === "all" ? "active" : ""}`}
+                onClick={() => setSubStatusFilter("all")}
+                style={{ padding: "4px 10px", fontSize: "0.9em" }}
+              >
+                🌐 All
+              </button>
+            </div>
+
             <span className="search-hint" style={{ marginRight: "auto" }}>(search by name or account)</span>
             <button className="btn-primary" onClick={openAddSubModal}>➕ Add Subscription</button>
           </div>
@@ -1363,6 +1438,7 @@ function App() {
                     >
                       Due Date {subSortAscending ? "▲" : "▼"}
                     </th>
+                    <th>Status</th>
                     <th>Memo</th>
                   </tr>
                 </thead>
@@ -1379,12 +1455,17 @@ function App() {
                       <td>{r.amount}</td>
                       <td>{r.period ? r.period.charAt(0).toUpperCase() + r.period.slice(1) : "Monthly"}</td>
                       <td>{r.dueDate}</td>
+                      <td onClick={(e) => handleToggleSubscriptionStatus(id, r, e)}>
+                        <span className={`status-badge ${r.status || "active"}`} style={{ cursor: "pointer", userSelect: "none" }} title="Click to toggle status">
+                          {(r.status || "active").toUpperCase()}
+                        </span>
+                      </td>
                       <td>{r.memo}</td>
                     </tr>
                   ))}
                   {filteredSubscriptions.length === 0 && (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                      <td colSpan={7} style={{ textAlign: "center", color: "var(--text-muted)" }}>
                         No subscriptions found
                       </td>
                     </tr>
@@ -1527,31 +1608,40 @@ function App() {
                           maxHeight: "70px"
                         }}
                       >
-                        {daySubs.map(([id, sub]) => (
-                          <div
-                            key={id}
-                            onClick={() => handleSubscriptionSelect(id, sub)}
-                            className="calendar-sub-badge"
-                            style={{
-                              fontSize: "0.8em",
-                              backgroundColor: "var(--color-purple)",
-                              color: "#11111b",
-                              padding: "2px 5px",
-                              borderRadius: "3px",
-                              cursor: "pointer",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              fontWeight: "bold",
-                              display: "flex",
-                              justifyContent: "space-between"
-                            }}
-                            title={`${sub.name} - ${sub.amount}`}
-                          >
-                            <span>{sub.name}</span>
-                            <span>{sub.amount}</span>
-                          </div>
-                        ))}
+                        {daySubs.map(([id, sub]) => {
+                          const isActive = (sub.status || "active") === "active";
+                          return (
+                            <div
+                              key={id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSubscriptionSelect(id, sub);
+                              }}
+                              className={`calendar-sub-badge ${isActive ? "active" : "inactive"}`}
+                              style={{
+                                fontSize: "0.8em",
+                                backgroundColor: isActive ? "var(--color-purple)" : "rgba(243, 139, 168, 0.15)",
+                                color: isActive ? "#11111b" : "var(--color-red)",
+                                padding: "2px 5px",
+                                borderRadius: "3px",
+                                cursor: "pointer",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                fontWeight: "bold",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                textDecoration: isActive ? "none" : "line-through",
+                                border: isActive ? "none" : "1px dashed var(--color-red)",
+                                opacity: isActive ? 1 : 0.75
+                              }}
+                              title={`${sub.name} - ${sub.amount} (${isActive ? "Active" : "Inactive"})`}
+                            >
+                              <span>{sub.name}</span>
+                              <span>{sub.amount}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -1900,6 +1990,17 @@ function App() {
                     value={subMemo}
                     onChange={(e) => setSubMemo(e.target.value)}
                   />
+                </div>
+                <div className="form-group">
+                  <label>Status:</label>
+                  <select
+                    className="input-field"
+                    value={subStatus}
+                    onChange={(e) => setSubStatus(e.target.value as "active" | "inactive")}
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
                 </div>
               </div>
               <div className="form-actions" style={{ marginTop: "20px" }}>
