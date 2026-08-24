@@ -1,6 +1,63 @@
-venv
-*.json
-.env
-.idea
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 personal_assistant.db
-__pycache__
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Generated/Config files
+*.json
+*.xml
+*.xml.bak
+
+# Tauri / Rust - For ALL Tauri apps in the repo
+**/target/
+**/src-tauri/gen/
+**/src-tauri/tauri.conf.json.bak
+**/src-tauri/WixTools/
+**/src-tauri/target/release/bundle/
+
+# Generated Tauri icons (ignore these)
+**/src-tauri/icons/*.png
+**/src-tauri/icons/*.icns
+**/src-tauri/icons/*.ico
+**/src-tauri/icons/android/
+**/src-tauri/icons/ios/
+
+# BUT keep the source icon
+!**/src-tauri/icons/icons8-filter-*.png
+
+# Frontend - For ALL apps
+**/node_modules/
+**/dist/
+**/build/
+**/out/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+.cache/

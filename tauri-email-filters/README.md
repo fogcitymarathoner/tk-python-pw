@@ -1,14 +1,21 @@
-# Tauri + React + Typescript
+# Gmail Filters XML Editor
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+Gmail can export and import its filters using XML formatting.  Using a custom XML editor like this is a better way of managing and creating more complicated filters.
 
 ## Recommended IDE Setup
 
 - [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
 
+## Build
+### For exe binary
+```npm run tauri build -- --target x86_64-pc-windows-msvc```
+Builds here **.\src-tauri\target\x86_64-pc-windows-msvc\release\gmail-filter-editor.exe**
+Find your installer in src-tauri/target/release/bundle/
+### For web deploy (dist)
+Run **np run tauri:build** (or cargo tauri build)
 
 ## Desktop Dev Server (with watchdog)
-``` npm run tauri dev```
+``` npm run tauri:dev```
 ## Load and Go
 ```
 
@@ -19,3 +26,4 @@ This template should help get you started developing with Tauri, React and Types
    3. You can find your standalone desktop executable inside:
      C:\Users\marc\Documents\repos\firebase_pw\tauri-email-filters\src-tauri\target\release\
      ```
+

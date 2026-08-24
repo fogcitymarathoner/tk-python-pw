@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
+use tauri::Manager;
 
 // Helper to find the correct path in the project root.
 fn get_project_path(filename: &str) -> Result<PathBuf, String> {
@@ -106,6 +107,19 @@ fn select_save_path(default_name: Option<String>) -> Result<Option<String>, Stri
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .on_tray_icon_event(|app, event| {
+            if let tauri::tray::TrayIconEvent::Click {
+                button: tauri::tray::MouseButton::Left,
+                button_state: tauri::tray::MouseButtonState::Up,
+                ..
+            } = event
+            {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             read_filters_file, 
             write_filters_file,
