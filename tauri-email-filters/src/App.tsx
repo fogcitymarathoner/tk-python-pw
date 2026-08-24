@@ -58,6 +58,7 @@ export default function App() {
   });
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState<"edit" | "sort">("edit");
   const [isTauriApp, setIsTauriApp] = useState(true);
 
   const [status, setStatus] = useState<"loading" | "loaded" | "modified" | "saved" | "error">(() => {
@@ -452,6 +453,8 @@ export default function App() {
     reader.readAsText(file);
   };
 
+
+
   // Field change updates
   const handlePropertyChange = (name: string, val: string) => {
     if (selectedIdx === null) return;
@@ -654,6 +657,8 @@ export default function App() {
       });
   }, [entries, searchTerm]);
 
+
+
   const selectedEntry = selectedIdx !== null ? entries[selectedIdx] : null;
 
   return (
@@ -687,6 +692,24 @@ export default function App() {
 
           {entries.length > 0 && (
             <>
+              {/* View Mode Toggle */}
+              <div className="view-mode-toggle">
+                <button
+                  className={`toggle-btn ${viewMode === "edit" ? "active" : ""}`}
+                  onClick={() => setViewMode("edit")}
+                  title="2-Column Mode: Edit details and sort"
+                >
+                  📝 Edit Details
+                </button>
+                <button
+                  className={`toggle-btn ${viewMode === "sort" ? "active" : ""}`}
+                  onClick={() => setViewMode("sort")}
+                  title="1-Column Mode: Read-only compact sorter"
+                >
+                  ↕️ Compact Sort
+                </button>
+              </div>
+
               <button className="btn" onClick={handleGenerateReport}>
                 📋 Copy Report
               </button>
@@ -721,16 +744,27 @@ export default function App() {
           </div>
         ) : (
           <>
-            {/* Left sidebar: Filter list */}
-            <section className="list-panel">
+            {/* Left sidebar / Full-width list panel */}
+            <section className={`list-panel ${viewMode}-view`}>
               <div className="search-section">
-                <input
-                  type="text"
-                  placeholder="🔍 Search filters by value (from, to, label, etc.)...."
-                  className="search-input"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                <div className="search-container">
+                  <input
+                    type="text"
+                    placeholder="🔍 Search filters by value (from, to, label, etc.)...."
+                    className="search-input"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  {searchTerm && (
+                    <button
+                      className="search-clear-btn"
+                      onClick={() => setSearchTerm("")}
+                      title="Clear search"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="entries-list-scroll">
@@ -753,245 +787,331 @@ export default function App() {
                         touchAction: "none" // Crucial for pointer capture on mobile/touch interfaces
                       }}
                     >
-                      <div className="entry-card-header">
-                        <span className="entry-card-title">
+                      {viewMode === "sort" ? (
+                        /* Compact single-line card (Sorter Mode) */
+                        <div className="entry-card-content-row">
                           <span className="drag-handle" title="Drag to reorder">☰</span>
-                          Filter <span className="entry-index">#{originalIdx + 1}</span>
-                        </span>
-                        <div className="entry-actions">
-                          <button
-                            className="icon-btn"
-                            disabled={originalIdx === 0}
-                            onClick={(e) => moveUp(originalIdx, e)}
-                            title="Move Up"
-                          >
-                            ▲
-                          </button>
-                          <button
-                            className="icon-btn"
-                            disabled={originalIdx === entries.length - 1}
-                            onClick={(e) => moveDown(originalIdx, e)}
-                            title="Move Down"
-                          >
-                            ▼
-                          </button>
-                          <button
-                            className="icon-btn"
-                            onClick={(e) => handleDuplicateFilter(originalIdx, e)}
-                            title="Duplicate Filter"
-                          >
-                            📋
-                          </button>
-                          <button
-                            className="icon-btn delete"
-                            onClick={(e) => handleDeleteFilter(originalIdx, e)}
-                            title="Delete Filter"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
+                          <span className="entry-index">#{originalIdx + 1}</span>
+                          
+                          {/* Compact inline summary of the filter rule */}
+                          <div className="badges-container-inline">
+                            {entry.properties.from && (
+                              <span className="badge badge-match" title={entry.properties.from}>
+                                From: {entry.properties.from}
+                              </span>
+                            )}
+                            {entry.properties.to && (
+                              <span className="badge badge-match" title={entry.properties.to}>
+                                To: {entry.properties.to}
+                              </span>
+                            )}
+                            {entry.properties.subject && (
+                              <span className="badge badge-match" title={entry.properties.subject}>
+                                Subj: {entry.properties.subject}
+                              </span>
+                            )}
+                            {entry.properties.label && (
+                              <span className="badge badge-label" title={entry.properties.label}>
+                                Label: {entry.properties.label}
+                              </span>
+                            )}
+                            {entry.properties.forwardTo && (
+                              <span className="badge badge-action" title={entry.properties.forwardTo}>
+                                Fwd: {entry.properties.forwardTo}
+                              </span>
+                            )}
+                            {entry.properties.shouldArchive === "true" && (
+                              <span className="badge badge-action">Archive</span>
+                            )}
+                            {entry.properties.shouldMarkAsRead === "true" && (
+                              <span className="badge badge-action">Read</span>
+                            )}
+                            {entry.properties.shouldNeverMarkAsImportant === "true" && (
+                              <span className="badge badge-action">No-Important</span>
+                            )}
+                            {entry.properties.shouldTrash === "true" && (
+                              <span className="badge badge-trash">Trash</span>
+                            )}
+                          </div>
 
-                      {/* Informative badges summarizing the filter rule at a glance */}
-                      <div className="badges-container">
-                        {entry.properties.from && (
-                          <span className="badge badge-match" title={entry.properties.from}>
-                            From: {entry.properties.from}
-                          </span>
-                        )}
-                        {entry.properties.to && (
-                          <span className="badge badge-match" title={entry.properties.to}>
-                            To: {entry.properties.to}
-                          </span>
-                        )}
-                        {entry.properties.subject && (
-                          <span className="badge badge-match" title={entry.properties.subject}>
-                            Subj: {entry.properties.subject}
-                          </span>
-                        )}
-                        {entry.properties.label && (
-                          <span className="badge badge-label" title={entry.properties.label}>
-                            Label: {entry.properties.label}
-                          </span>
-                        )}
-                        {entry.properties.forwardTo && (
-                          <span className="badge badge-action" title={entry.properties.forwardTo}>
-                            Fwd: {entry.properties.forwardTo}
-                          </span>
-                        )}
-                        {entry.properties.shouldArchive === "true" && (
-                          <span className="badge badge-action">Archive</span>
-                        )}
-                        {entry.properties.shouldMarkAsRead === "true" && (
-                          <span className="badge badge-action">Read</span>
-                        )}
-                        {entry.properties.shouldNeverMarkAsImportant === "true" && (
-                          <span className="badge badge-action">No-Important</span>
-                        )}
-                        {entry.properties.shouldTrash === "true" && (
-                          <span className="badge badge-trash">Trash</span>
-                        )}
-                      </div>
+                          <div className="entry-actions">
+                            <button
+                              className="icon-btn"
+                              disabled={originalIdx === 0}
+                              onClick={(e) => moveUp(originalIdx, e)}
+                              title="Move Up"
+                            >
+                              ▲
+                            </button>
+                            <button
+                              className="icon-btn"
+                              disabled={originalIdx === entries.length - 1}
+                              onClick={(e) => moveDown(originalIdx, e)}
+                              title="Move Down"
+                            >
+                              ▼
+                            </button>
+                            <button
+                              className="icon-btn"
+                              onClick={(e) => handleDuplicateFilter(originalIdx, e)}
+                              title="Duplicate Filter"
+                            >
+                              📋
+                            </button>
+                            <button
+                              className="icon-btn delete"
+                              onClick={(e) => handleDeleteFilter(originalIdx, e)}
+                              title="Delete Filter"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* Original tall card with badges on separate line (Editor Mode) */
+                        <>
+                          <div className="entry-card-header">
+                            <span className="entry-card-title">
+                              <span className="drag-handle" title="Drag to reorder">☰</span>
+                              Filter <span className="entry-index">#{originalIdx + 1}</span>
+                            </span>
+                            <div className="entry-actions">
+                              <button
+                                className="icon-btn"
+                                disabled={originalIdx === 0}
+                                onClick={(e) => moveUp(originalIdx, e)}
+                                title="Move Up"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                className="icon-btn"
+                                disabled={originalIdx === entries.length - 1}
+                                onClick={(e) => moveDown(originalIdx, e)}
+                                title="Move Down"
+                              >
+                                ▼
+                              </button>
+                              <button
+                                className="icon-btn"
+                                onClick={(e) => handleDuplicateFilter(originalIdx, e)}
+                                title="Duplicate Filter"
+                              >
+                                📋
+                              </button>
+                              <button
+                                className="icon-btn delete"
+                                onClick={(e) => handleDeleteFilter(originalIdx, e)}
+                                title="Delete Filter"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="badges-container">
+                            {entry.properties.from && (
+                              <span className="badge badge-match" title={entry.properties.from}>
+                                From: {entry.properties.from}
+                              </span>
+                            )}
+                            {entry.properties.to && (
+                              <span className="badge badge-match" title={entry.properties.to}>
+                                To: {entry.properties.to}
+                              </span>
+                            )}
+                            {entry.properties.subject && (
+                              <span className="badge badge-match" title={entry.properties.subject}>
+                                Subj: {entry.properties.subject}
+                              </span>
+                            )}
+                            {entry.properties.label && (
+                              <span className="badge badge-label" title={entry.properties.label}>
+                                Label: {entry.properties.label}
+                              </span>
+                            )}
+                            {entry.properties.forwardTo && (
+                              <span className="badge badge-action" title={entry.properties.forwardTo}>
+                                Fwd: {entry.properties.forwardTo}
+                              </span>
+                            )}
+                            {entry.properties.shouldArchive === "true" && (
+                              <span className="badge badge-action">Archive</span>
+                            )}
+                            {entry.properties.shouldMarkAsRead === "true" && (
+                              <span className="badge badge-action">Read</span>
+                            )}
+                            {entry.properties.shouldNeverMarkAsImportant === "true" && (
+                              <span className="badge badge-action">No-Important</span>
+                            )}
+                            {entry.properties.shouldTrash === "true" && (
+                              <span className="badge badge-trash">Trash</span>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })}
               </div>
             </section>
 
-            {/* Right workspace: Property Form Editor */}
-            <section className="editor-panel">
-              {selectedEntry ? (
-                <>
-                  <div className="editor-header">
-                    <h2>Filter Configuration</h2>
-                    <p style={{ wordBreak: "break-all" }}>ID: {selectedEntry.id}</p>
-                    <p>Last Evaluated/Updated: {selectedEntry.updated}</p>
-                  </div>
+            {/* Right workspace: Property Form Editor (Only in Edit mode) */}
+            {viewMode === "edit" && (
+              <section className="editor-panel">
+                {selectedEntry ? (
+                  <>
+                    <div className="editor-header">
+                      <h2>Filter Configuration</h2>
+                      <p style={{ wordBreak: "break-all" }}>ID: {selectedEntry.id}</p>
+                      <p>Last Evaluated/Updated: {selectedEntry.updated}</p>
+                    </div>
 
-                  <div className="editor-scroll">
-                    <div className="form-grid">
-                      {/* Text inputs matching specified text fields */}
-                      <div className="form-field full-width">
-                        <label className="form-label">From Condition</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="Sender address, domain, or query..."
-                          value={selectedEntry.properties.from || ""}
-                          onChange={(e) => handlePropertyChange("from", e.target.value)}
-                        />
-                      </div>
-
-                      <div className="form-field full-width">
-                        <label className="form-label">To Condition</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="Recipient email address..."
-                          value={selectedEntry.properties.to || ""}
-                          onChange={(e) => handlePropertyChange("to", e.target.value)}
-                        />
-                      </div>
-
-                      <div className="form-field full-width">
-                        <label className="form-label">Subject</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="Email subject keywords..."
-                          value={selectedEntry.properties.subject || ""}
-                          onChange={(e) => handlePropertyChange("subject", e.target.value)}
-                        />
-                      </div>
-
-                      <div className="form-field full-width">
-                        <label className="form-label">Apply Label</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="Gmail folder or label name..."
-                          value={selectedEntry.properties.label || ""}
-                          onChange={(e) => handlePropertyChange("label", e.target.value)}
-                        />
-                      </div>
-
-                      <div className="form-field full-width">
-                        <label className="form-label">Forward To Address</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="Forwarding email address..."
-                          value={selectedEntry.properties.forwardTo || ""}
-                          onChange={(e) => handlePropertyChange("forwardTo", e.target.value)}
-                        />
-                      </div>
-
-                      <div className="form-field">
-                        <label className="form-label">Size Operator</label>
-                        <select
-                          className="form-select"
-                          value={selectedEntry.properties.sizeOperator || ""}
-                          onChange={(e) => handlePropertyChange("sizeOperator", e.target.value)}
-                        >
-                          <option value="">(None)</option>
-                          <option value="s_sl">Greater than (s_sl)</option>
-                          <option value="s_ss">Less than (s_ss)</option>
-                        </select>
-                      </div>
-
-                      <div className="form-field">
-                        <label className="form-label">Size Unit</label>
-                        <select
-                          className="form-select"
-                          value={selectedEntry.properties.sizeUnit || ""}
-                          onChange={(e) => handlePropertyChange("sizeUnit", e.target.value)}
-                        >
-                          <option value="">(None)</option>
-                          <option value="s_smb">Megabytes (s_smb)</option>
-                          <option value="s_skb">Kilobytes (s_skb)</option>
-                          <option value="s_sb">Bytes (s_sb)</option>
-                        </select>
-                      </div>
-
-                      {/* Grid for Google Mail filter actions (Checkboxes/Booleans) */}
-                      <div className="checkbox-grid">
-                        <label className="checkbox-field">
+                    <div className="editor-scroll">
+                      <div className="form-grid">
+                        {/* Text inputs matching specified text fields */}
+                        <div className="form-field full-width">
+                          <label className="form-label">From Condition</label>
                           <input
-                            type="checkbox"
-                            checked={selectedEntry.properties.shouldArchive === "true"}
-                            onChange={(e) =>
-                              handlePropertyChange("shouldArchive", e.target.checked ? "true" : "")
-                            }
+                            type="text"
+                            className="form-input"
+                            placeholder="Sender address, domain, or query..."
+                            value={selectedEntry.properties.from || ""}
+                            onChange={(e) => handlePropertyChange("from", e.target.value)}
                           />
-                          <span className="checkbox-label">Skip the Inbox (Archive)</span>
-                        </label>
+                        </div>
 
-                        <label className="checkbox-field">
+                        <div className="form-field full-width">
+                          <label className="form-label">To Condition</label>
                           <input
-                            type="checkbox"
-                            checked={selectedEntry.properties.shouldMarkAsRead === "true"}
-                            onChange={(e) =>
-                              handlePropertyChange("shouldMarkAsRead", e.target.checked ? "true" : "")
-                            }
+                            type="text"
+                            className="form-input"
+                            placeholder="Recipient email address..."
+                            value={selectedEntry.properties.to || ""}
+                            onChange={(e) => handlePropertyChange("to", e.target.value)}
                           />
-                          <span className="checkbox-label">Mark as Read</span>
-                        </label>
+                        </div>
 
-                        <label className="checkbox-field">
+                        <div className="form-field full-width">
+                          <label className="form-label">Subject</label>
                           <input
-                            type="checkbox"
-                            checked={selectedEntry.properties.shouldNeverMarkAsImportant === "true"}
-                            onChange={(e) =>
-                              handlePropertyChange(
-                                "shouldNeverMarkAsImportant",
-                                e.target.checked ? "true" : ""
-                              )
-                            }
+                            type="text"
+                            className="form-input"
+                            placeholder="Email subject keywords..."
+                            value={selectedEntry.properties.subject || ""}
+                            onChange={(e) => handlePropertyChange("subject", e.target.value)}
                           />
-                          <span className="checkbox-label">Never mark as important</span>
-                        </label>
+                        </div>
 
-                        <label className="checkbox-field">
+                        <div className="form-field full-width">
+                          <label className="form-label">Apply Label</label>
                           <input
-                            type="checkbox"
-                            checked={selectedEntry.properties.shouldTrash === "true"}
-                            onChange={(e) =>
-                              handlePropertyChange("shouldTrash", e.target.checked ? "true" : "")
-                            }
+                            type="text"
+                            className="form-input"
+                            placeholder="Gmail folder or label name..."
+                            value={selectedEntry.properties.label || ""}
+                            onChange={(e) => handlePropertyChange("label", e.target.value)}
                           />
-                          <span className="checkbox-label">Delete it (Trash)</span>
-                        </label>
+                        </div>
+
+                        <div className="form-field full-width">
+                          <label className="form-label">Forward To Address</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Forwarding email address..."
+                            value={selectedEntry.properties.forwardTo || ""}
+                            onChange={(e) => handlePropertyChange("forwardTo", e.target.value)}
+                          />
+                        </div>
+
+                        <div className="form-field">
+                          <label className="form-label">Size Operator</label>
+                          <select
+                            className="form-select"
+                            value={selectedEntry.properties.sizeOperator || ""}
+                            onChange={(e) => handlePropertyChange("sizeOperator", e.target.value)}
+                          >
+                            <option value="">(None)</option>
+                            <option value="s_sl">Greater than (s_sl)</option>
+                            <option value="s_ss">Less than (s_ss)</option>
+                          </select>
+                        </div>
+
+                        <div className="form-field">
+                          <label className="form-label">Size Unit</label>
+                          <select
+                            className="form-select"
+                            value={selectedEntry.properties.sizeUnit || ""}
+                            onChange={(e) => handlePropertyChange("sizeUnit", e.target.value)}
+                          >
+                            <option value="">(None)</option>
+                            <option value="s_smb">Megabytes (s_smb)</option>
+                            <option value="s_skb">Kilobytes (s_skb)</option>
+                            <option value="s_sb">Bytes (s_sb)</option>
+                          </select>
+                        </div>
+
+                        {/* Grid for Google Mail filter actions (Checkboxes/Booleans) */}
+                        <div className="checkbox-grid">
+                          <label className="checkbox-field">
+                            <input
+                              type="checkbox"
+                              checked={selectedEntry.properties.shouldArchive === "true"}
+                              onChange={(e) =>
+                                handlePropertyChange("shouldArchive", e.target.checked ? "true" : "")
+                              }
+                            />
+                            <span className="checkbox-label">Skip the Inbox (Archive)</span>
+                          </label>
+
+                          <label className="checkbox-field">
+                            <input
+                              type="checkbox"
+                              checked={selectedEntry.properties.shouldMarkAsRead === "true"}
+                              onChange={(e) =>
+                                handlePropertyChange("shouldMarkAsRead", e.target.checked ? "true" : "")
+                              }
+                            />
+                            <span className="checkbox-label">Mark as Read</span>
+                          </label>
+
+                          <label className="checkbox-field">
+                            <input
+                              type="checkbox"
+                              checked={selectedEntry.properties.shouldNeverMarkAsImportant === "true"}
+                              onChange={(e) =>
+                                handlePropertyChange(
+                                  "shouldNeverMarkAsImportant",
+                                  e.target.checked ? "true" : ""
+                                )
+                              }
+                            />
+                            <span className="checkbox-label">Never mark as important</span>
+                          </label>
+
+                          <label className="checkbox-field">
+                            <input
+                              type="checkbox"
+                              checked={selectedEntry.properties.shouldTrash === "true"}
+                              onChange={(e) =>
+                                handlePropertyChange("shouldTrash", e.target.checked ? "true" : "")
+                              }
+                            />
+                            <span className="checkbox-label">Delete it (Trash)</span>
+                          </label>
+                        </div>
                       </div>
                     </div>
+                  </>
+                ) : (
+                  <div className="empty-state">
+                    <h3>No Filter Selected</h3>
+                    <p>Select a filter card from the left panel to modify its rule attributes.</p>
                   </div>
-                </>
-              ) : (
-                <div className="empty-state">
-                  <h3>No Filter Selected</h3>
-                  <p>Select a filter card from the left panel to modify its rule attributes.</p>
-                </div>
-              )}
-            </section>
+                )}
+              </section>
+            )}
           </>
         )}
       </main>

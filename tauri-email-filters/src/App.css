@@ -165,14 +165,57 @@ body {
   overflow: hidden;
 }
 
+/* View Mode Toggle Pill Switch */
+.view-mode-toggle {
+  display: flex;
+  background-color: rgba(240, 246, 252, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 2px;
+  gap: 2px;
+  margin-right: 12px;
+}
+
+.toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 18px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toggle-btn:hover {
+  color: var(--text-primary);
+}
+
+.toggle-btn.active {
+  background-color: var(--card-selected);
+  color: var(--text-inverse);
+}
+
 /* Left panel (sidebar list) */
 .list-panel {
-  width: 420px;
   background-color: var(--bg-sidebar);
-  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.list-panel.edit-view {
+  width: 420px;
+  flex: none;
+  border-right: 1px solid var(--border-color);
+}
+
+.list-panel.sort-view {
+  flex: 1;
 }
 
 .search-section {
@@ -180,9 +223,16 @@ body {
   border-bottom: 1px solid var(--border-color);
 }
 
+.search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
 .search-input {
   width: 100%;
-  padding: 8px 12px;
+  padding: 8px 36px 8px 12px;
   border-radius: 6px;
   border: 1px solid var(--border-color);
   background-color: var(--bg-color);
@@ -196,7 +246,29 @@ body {
   border-color: var(--accent-color);
 }
 
-.entries-list-scroll {
+.search-clear-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.15s;
+}
+
+.search-clear-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--border-color);
+}
+
+/* Gaps and paddings based on active view mode */
+.edit-view .entries-list-scroll {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
@@ -205,12 +277,32 @@ body {
   gap: 12px;
 }
 
-/* Entry card styling */
-.entry-card {
+.sort-view .entries-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Entry card styling based on active view mode */
+.edit-view .entry-card {
   background-color: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 14px;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: all 0.15s ease-in-out;
+}
+
+.sort-view .entry-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 12px;
   cursor: pointer;
   user-select: none;
   position: relative;
@@ -230,6 +322,34 @@ body {
 
 .entry-card.drag-over {
   border-top: 3px solid var(--accent-color);
+}
+
+.entry-card-content-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.badges-container-inline {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.badges-container-inline .badge {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  margin-top: 0;
 }
 
 .entry-card-header {
@@ -770,6 +890,13 @@ body {
 @keyframes status-pulse {
   from { opacity: 0.4; }
   to { opacity: 1; }
+}
+
+/* Force selection, editing, and copy/cut/paste capabilities on inputs */
+.form-input, .search-input {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  pointer-events: auto !important;
 }
 
 
