@@ -39,6 +39,15 @@ personal_assistant.db
 
 # BUT keep the source icon
 !**/src-tauri/icons/icons8-filter-*.png
+!**/src-tauri/icons/icons8-assistant*.png
+!tauri-personal-assistant/src-tauri/icons/tray.png
+!tauri-personal-assistant/src-tauri/icons/icon.png
+!tauri-personal-assistant/src-tauri/icons/icon.ico
+!tauri-personal-assistant/src-tauri/icons/icon.icns
+!tauri-personal-assistant/src-tauri/icons/32x32.png
+!tauri-personal-assistant/src-tauri/icons/64x64.png
+!tauri-personal-assistant/src-tauri/icons/128x128.png
+!tauri-personal-assistant/src-tauri/icons/128x128@2x.png
 
 # Frontend - For ALL apps
 **/node_modules/
