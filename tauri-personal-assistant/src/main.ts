@@ -1,5 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import wikiIcon from "./assets/icons/wiki.ico";
+import personalDataIcon from "./assets/icons/personal-data.png";
+import gmailFilterIcon from "./assets/icons/gmail-filter.png";
+
+const APP_ICONS: Record<string, string> = {
+  wiki: wikiIcon,
+  "personal-data": personalDataIcon,
+  "gmail-filter": gmailFilterIcon,
+};
 
 interface AppStatus {
   id: string;
@@ -26,7 +35,10 @@ function renderCard(app: AppStatus): HTMLElement {
 
   card.innerHTML = `
     <div class="app-card-header">
-      <h2>${app.name}</h2>
+      <h2>
+        ${APP_ICONS[app.id] ? `<img class="app-icon" src="${APP_ICONS[app.id]}" alt="" />` : ""}
+        <span>${app.name}</span>
+      </h2>
       <span class="status-badge stopped">Stopped</span>
     </div>
     <p class="app-link"></p>

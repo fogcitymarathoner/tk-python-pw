@@ -5,7 +5,8 @@ use db::{Category, Vendor, ExpenseWithCategory};
 use firebase::FirebaseClient;
 use std::sync::Mutex;
 use serde_json::{json, Value};
-use tauri::State;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{image::Image, menu::{Menu, MenuItem}, Manager, State};
 use std::path::Path;
 use rusqlite::params;
 
@@ -777,6 +778,54 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(DbState(Mutex::new(db_conn)))
         .manage(FirebaseState(firebase_client))
+        .setup(|app| {
+            let app_icon = Image::from_bytes(include_bytes!("../icons/tray.png"))
+                .expect("failed to load app icon");
+
+            if let Some(window) = app.get_webview_window("main") {
+                window.set_icon(app_icon.clone())?;
+                #[cfg(windows)]
+                apply_taskbar_icon(&window);
+            }
+
+            let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show, &quit])?;
+
+            TrayIconBuilder::with_id("tray")
+                .icon(app_icon)
+                .tooltip("tauri")
+                .menu(&menu)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "quit" => app.exit(0),
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.unminimize();
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.unminimize();
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             is_firebase_available,
             get_users,
@@ -807,4 +856,54 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(windows)]
+fn apply_taskbar_icon(window: &tauri::WebviewWindow) {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        LoadImageW, SendMessageW, ICON_BIG, ICON_SMALL, IMAGE_ICON, LR_LOADFROMFILE, WM_SETICON,
+    };
+
+    let Ok(hwnd) = window.hwnd() else {
+        return;
+    };
+
+    let ico_path = std::env::temp_dir().join("tauri-app.ico");
+    if std::fs::write(&ico_path, include_bytes!("../icons/icon.ico")).is_err() {
+        return;
+    }
+
+    let wide: Vec<u16> = ico_path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+
+    unsafe {
+        let hwnd = hwnd.0;
+        let small = LoadImageW(
+            std::ptr::null_mut(),
+            wide.as_ptr(),
+            IMAGE_ICON,
+            32,
+            32,
+            LR_LOADFROMFILE,
+        );
+        let big = LoadImageW(
+            std::ptr::null_mut(),
+            wide.as_ptr(),
+            IMAGE_ICON,
+            48,
+            48,
+            LR_LOADFROMFILE,
+        );
+
+        if !small.is_null() {
+            SendMessageW(hwnd, WM_SETICON, ICON_SMALL as usize, small as isize);
+        }
+        if !big.is_null() {
+            SendMessageW(hwnd, WM_SETICON, ICON_BIG as usize, big as isize);
+        }
+    }
 }
