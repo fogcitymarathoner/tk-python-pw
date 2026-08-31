@@ -17,7 +17,7 @@ const WIKI_URL: &str = "http://localhost:8899";
 
 const PERSONAL_DATA_DIR: &str =
     r"C:\Users\marc\Documents\repos\firebase_pw\tauri\src-tauri\target\release";
-const PERSONAL_DATA_EXE: &str = "tauri.exe";
+const PERSONAL_DATA_EXE: &str = "personal-data.exe";
 const PERSONAL_DATA_BUILD_DIR: &str = r"C:\Users\marc\Documents\repos\firebase_pw\tauri";
 
 const GMAIL_FILTER_DIR: &str =
