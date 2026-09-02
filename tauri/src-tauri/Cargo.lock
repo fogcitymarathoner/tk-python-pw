@@ -2735,6 +2735,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
+name = "personal-data"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hyper-rustls",
+ "hyper-util",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-opener",
+ "tokio",
+ "windows-sys 0.59.0",
+ "yup-oauth2",
+]
+
+[[package]]
 name = "phf"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3874,25 +3893,6 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "hyper-rustls",
- "hyper-util",
- "reqwest 0.12.28",
- "rusqlite",
- "serde",
- "serde_json",
- "tauri 2.11.5",
- "tauri-build",
- "tauri-plugin-opener",
- "tokio",
- "windows-sys 0.59.0",
- "yup-oauth2",
-]
-
-[[package]]
-name = "tauri"
 version = "2.11.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "667b20e2726d572dea2de7370da16e188eb06008faf9a92fab7cdc46791190b5"
@@ -4035,7 +4035,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "serde_json",
- "tauri 2.11.5",
+ "tauri",
  "tauri-plugin",
  "thiserror 2.0.20",
  "url",

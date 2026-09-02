@@ -1,72 +1,69 @@
 # Python
 venv/
+.venv/
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 *.pyo
 *.pyd
-personal_assistant.db
+.Python
 
-# Environment
+# Local runtime data
+personal_assistant.db
+*.db-journal
+
+# Secrets — never commit
 .env
 .env.local
 .env.*.local
+*-firebase-adminsdk-*.json
+fogcitymarathoner-*.json
 
-# IDE
+# IDE / editor / OS
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 *.swp
 *.swo
 *~
-
-# Generated/Config files
-*.json
-*.xml
-*.xml.bak
-
-# Tauri / Rust - For ALL Tauri apps in the repo
-**/target/
-**/src-tauri/gen/
-**/src-tauri/tauri.conf.json.bak
-**/src-tauri/WixTools/
-**/src-tauri/target/release/bundle/
-
-# Generated Tauri icons (ignore these)
-**/src-tauri/icons/*.png
-**/src-tauri/icons/*.icns
-**/src-tauri/icons/*.ico
-**/src-tauri/icons/android/
-**/src-tauri/icons/ios/
-
-# BUT keep the source icon
-!**/src-tauri/icons/icons8-filter-*.png
-!**/src-tauri/icons/icons8-assistant*.png
-!tauri-personal-assistant/src-tauri/icons/tray.png
-!tauri-personal-assistant/src-tauri/icons/icon.png
-!tauri-personal-assistant/src-tauri/icons/icon.ico
-!tauri-personal-assistant/src-tauri/icons/icon.icns
-!tauri-personal-assistant/src-tauri/icons/32x32.png
-!tauri-personal-assistant/src-tauri/icons/64x64.png
-!tauri-personal-assistant/src-tauri/icons/128x128.png
-!tauri-personal-assistant/src-tauri/icons/128x128@2x.png
-
-# Frontend - For ALL apps
-**/node_modules/
-**/dist/
-**/build/
-**/out/
-
-# OS metadata
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Logs
-*.log
-logs/
+# Aider / local AI tool cache
+.aider.chat.history.md
+.aider.input.history
+.aider.tags.cache.v4/
+.aider*
 
-# Temporary files
+# Logs and temp
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
 *.tmp
 *.temp
 *.bak
 *.backup
 .cache/
+
+# Generated reports and filter backups
+filter_report.txt
+**/mailFilters.xml.bak
+**/mailFilters*.xml.bak
+
+# Tauri / Rust build output
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/build/
+**/out/
+**/target/
+**/src-tauri/gen/
+**/src-tauri/WixTools/
+
+# Mobile icon packs from `tauri icon` (desktop builds do not need these)
+**/src-tauri/icons/android/
+**/src-tauri/icons/ios/
