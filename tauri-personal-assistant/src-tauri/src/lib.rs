@@ -1,3 +1,4 @@
+mod backup;
 mod processes;
 
 use processes::{AppId, AppLogs, AppStatus, ProcessManager};
@@ -31,6 +32,13 @@ fn stop_app(app_id: String, manager: State<'_, ProcessManager>) -> Result<(), St
 fn rebuild_app(app_id: String, manager: State<'_, ProcessManager>) -> Result<(), String> {
     let id = AppId::from_str(&app_id).ok_or_else(|| format!("Unknown app: {app_id}"))?;
     manager.rebuild(id)
+}
+
+#[tauri::command]
+async fn backup_repo() -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(backup::create_backup)
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -91,7 +99,8 @@ pub fn run() {
             get_app_logs,
             start_app,
             stop_app,
-            rebuild_app
+            rebuild_app,
+            backup_repo
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

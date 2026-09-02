@@ -44,13 +44,15 @@ interface PasswordRecord {
   memo?: string;
 }
 
+type SubscriptionPeriod = "monthly" | "annual" | "every_two_months";
+
 interface SubscriptionRecord {
   name: string;
   account: string;
   amount: string;
   dueDate: string;
   memo: string;
-  period?: "monthly" | "annual";
+  period?: SubscriptionPeriod;
   status?: "active" | "inactive";
 }
 
@@ -58,6 +60,42 @@ const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
 ];
+
+const PERIOD_LABELS: Record<SubscriptionPeriod, string> = {
+  monthly: "Monthly",
+  annual: "Annual",
+  every_two_months: "Every two months",
+};
+
+const CALENDAR_DAY_PREVIEW_COUNT = 4;
+
+function formatPeriod(period?: string): string {
+  if (period && period in PERIOD_LABELS) {
+    return PERIOD_LABELS[period as SubscriptionPeriod];
+  }
+  return PERIOD_LABELS.monthly;
+}
+
+function periodUsesDueMonth(period?: string): boolean {
+  return period === "annual" || period === "every_two_months";
+}
+
+function parseDueMonthName(dueDate: string): string | undefined {
+  return MONTHS.find((m) => dueDate.toLowerCase().includes(m.toLowerCase()));
+}
+
+function monthMatchesPeriod(period: string | undefined, dueDate: string, calMonth: number): boolean {
+  if (period === "annual") {
+    const monthName = parseDueMonthName(dueDate);
+    return monthName ? MONTHS[calMonth] === monthName : false;
+  }
+  if (period === "every_two_months") {
+    const monthName = parseDueMonthName(dueDate);
+    const anchor = monthName ? MONTHS.indexOf(monthName) : 0;
+    return ((calMonth - anchor) % 2 + 2) % 2 === 0;
+  }
+  return true;
+}
 
 function App() {
   // --- Global App State ---
@@ -99,7 +137,7 @@ function App() {
   const [subAmount, setSubAmount] = useState<string>("");
   const [subDueDate, setSubDueDate] = useState<string>("");
   const [subMemo, setSubMemo] = useState<string>("");
-  const [subPeriod, setSubPeriod] = useState<"monthly" | "annual">("monthly");
+  const [subPeriod, setSubPeriod] = useState<SubscriptionPeriod>("monthly");
   const [subDueMonth, setSubDueMonth] = useState<string>("January");
   const [subSortAscending, setSubSortAscending] = useState<boolean>(true);
   const [subViewMode, setSubViewMode] = useState<"list" | "calendar">("list");
@@ -107,6 +145,7 @@ function App() {
   const [calYear, setCalYear] = useState<number>(new Date().getFullYear());
   const [subStatus, setSubStatus] = useState<"active" | "inactive">("active");
   const [subStatusFilter, setSubStatusFilter] = useState<"active" | "inactive" | "all">("active");
+  const [expandedCalDay, setExpandedCalDay] = useState<number | null>(null);
 
   // --- Expenses State ---
   const [categories, setCategories] = useState<Category[]>([]);
@@ -381,25 +420,10 @@ function App() {
     const period = record.period || "monthly";
     setSubPeriod(period);
 
-    if (period === "annual") {
-      const matchedMonth = MONTHS.find(m => record.dueDate.toLowerCase().includes(m.toLowerCase()));
-      if (matchedMonth) {
-        setSubDueMonth(matchedMonth);
-        const match = record.dueDate.match(/\d+/);
-        if (match) {
-          setSubDueDate(getOrdinalDay(parseInt(match[0], 10)));
-        } else {
-          setSubDueDate("1st");
-        }
-      } else {
-        setSubDueMonth("January");
-        const match = record.dueDate.match(/\d+/);
-        if (match) {
-          setSubDueDate(getOrdinalDay(parseInt(match[0], 10)));
-        } else {
-          setSubDueDate("1st");
-        }
-      }
+    if (periodUsesDueMonth(period)) {
+      setSubDueMonth(parseDueMonthName(record.dueDate) || "January");
+      const match = record.dueDate.match(/\d+/);
+      setSubDueDate(match ? getOrdinalDay(parseInt(match[0], 10)) : "1st");
     } else {
       setSubDueMonth("January");
       setSubDueDate(record.dueDate);
@@ -455,7 +479,7 @@ function App() {
       alert("Service Name is required.");
       return;
     }
-    const dueDateToStore = subPeriod === "annual"
+    const dueDateToStore = periodUsesDueMonth(subPeriod)
       ? `${subDueMonth} ${subDueDate}`
       : subDueDate;
 
@@ -484,7 +508,7 @@ function App() {
       alert("Service Name is required.");
       return;
     }
-    const dueDateToStore = subPeriod === "annual"
+    const dueDateToStore = periodUsesDueMonth(subPeriod)
       ? `${subDueMonth} ${subDueDate}`
       : subDueDate;
 
@@ -1109,6 +1133,7 @@ function App() {
     });
 
   const handlePrevMonth = () => {
+    setExpandedCalDay(null);
     setCalMonth((prev) => {
       if (prev === 0) {
         setCalYear((y) => y - 1);
@@ -1119,6 +1144,7 @@ function App() {
   };
 
   const handleNextMonth = () => {
+    setExpandedCalDay(null);
     setCalMonth((prev) => {
       if (prev === 11) {
         setCalYear((y) => y + 1);
@@ -1157,13 +1183,8 @@ function App() {
           }
         }
 
-        // If it's an annual subscription, check if the month matches
-        const isAnnual = sub.period === "annual";
-        if (isAnnual) {
-          const currentMonthName = MONTHS[calMonth].toLowerCase();
-          if (!clean.toLowerCase().includes(currentMonthName)) {
-            return false;
-          }
+        if (!monthMatchesPeriod(sub.period, clean, calMonth)) {
+          return false;
         }
 
         // Recurring month day (e.g. "15th" -> 15)
@@ -1200,6 +1221,8 @@ function App() {
         return [id, sub];
       });
   };
+
+  const expandedDaySubs = expandedCalDay !== null ? getSubsForDay(expandedCalDay) : [];
 
   // --- TanStack Table Definition ---
   const columns: ColumnDef<StockFeatures, Expense, any>[] = [
@@ -1453,7 +1476,7 @@ function App() {
                       <td>{r.name}</td>
                       <td>{r.account}</td>
                       <td>{r.amount}</td>
-                      <td>{r.period ? r.period.charAt(0).toUpperCase() + r.period.slice(1) : "Monthly"}</td>
+                      <td>{formatPeriod(r.period)}</td>
                       <td>{r.dueDate}</td>
                       <td onClick={(e) => handleToggleSubscriptionStatus(id, r, e)}>
                         <span className={`status-badge ${r.status || "active"}`} style={{ cursor: "pointer", userSelect: "none" }} title="Click to toggle status">
@@ -1486,6 +1509,7 @@ function App() {
                 <button onClick={handleNextMonth} className="btn-secondary" style={{ padding: "4px 10px" }}>▶</button>
                 <button
                   onClick={() => {
+                    setExpandedCalDay(null);
                     setCalMonth(new Date().getMonth());
                     setCalYear(new Date().getFullYear());
                   }}
@@ -1539,11 +1563,16 @@ function App() {
                     new Date().getFullYear() === calYear;
 
                   const daySubs = getSubsForDay(cellDay);
+                  const isBusyDay = daySubs.length > CALENDAR_DAY_PREVIEW_COUNT;
+                  const previewSubs = isBusyDay ? [] : daySubs;
 
                   return (
                     <div
                       key={`day-${cellDay}`}
                       className={`calendar-day-cell ${isTodayActive ? "today" : ""}`}
+                      onClick={() => {
+                        if (daySubs.length > 0) setExpandedCalDay(cellDay);
+                      }}
                       style={{
                         minHeight: "95px",
                         border: isTodayActive ? "2px solid var(--color-purple)" : "1px solid var(--bg-input)",
@@ -1554,7 +1583,8 @@ function App() {
                         flexDirection: "column",
                         gap: "6px",
                         boxShadow: isTodayActive ? "0 0 12px rgba(203, 166, 247, 0.25)" : "none",
-                        transition: "all 0.2s ease"
+                        transition: "all 0.2s ease",
+                        cursor: daySubs.length > 0 ? "pointer" : "default",
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1579,6 +1609,7 @@ function App() {
                                   color: "var(--text-main)",
                                 }
                           }
+                          title={daySubs.length > 0 ? `Show all ${daySubs.length} subscription(s)` : undefined}
                         >
                           {cellDay}
                         </span>
@@ -1604,44 +1635,57 @@ function App() {
                           display: "flex",
                           flexDirection: "column",
                           gap: "4px",
-                          overflowY: "auto",
-                          maxHeight: "70px"
+                          overflow: "hidden",
+                          justifyContent: isBusyDay ? "center" : "flex-start",
                         }}
                       >
-                        {daySubs.map(([id, sub]) => {
-                          const isActive = (sub.status || "active") === "active";
-                          return (
-                            <div
-                              key={id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSubscriptionSelect(id, sub);
-                              }}
-                              className={`calendar-sub-badge ${isActive ? "active" : "inactive"}`}
-                              style={{
-                                fontSize: "0.8em",
-                                backgroundColor: isActive ? "var(--color-purple)" : "rgba(243, 139, 168, 0.15)",
-                                color: isActive ? "#11111b" : "var(--color-red)",
-                                padding: "2px 5px",
-                                borderRadius: "3px",
-                                cursor: "pointer",
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                fontWeight: "bold",
-                                display: "flex",
-                                justifyContent: "space-between",
-                                textDecoration: isActive ? "none" : "line-through",
-                                border: isActive ? "none" : "1px dashed var(--color-red)",
-                                opacity: isActive ? 1 : 0.75
-                              }}
-                              title={`${sub.name} - ${sub.amount} (${isActive ? "Active" : "Inactive"})`}
-                            >
-                              <span>{sub.name}</span>
-                              <span>{sub.amount}</span>
-                            </div>
-                          );
-                        })}
+                        {isBusyDay ? (
+                          <button
+                            type="button"
+                            className="calendar-day-count"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedCalDay(cellDay);
+                            }}
+                          >
+                            {daySubs.length} subscriptions
+                          </button>
+                        ) : (
+                          previewSubs.map(([id, sub]) => {
+                            const isActive = (sub.status || "active") === "active";
+                            return (
+                              <div
+                                key={id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSubscriptionSelect(id, sub);
+                                }}
+                                className={`calendar-sub-badge ${isActive ? "active" : "inactive"}`}
+                                style={{
+                                  fontSize: "0.8em",
+                                  backgroundColor: isActive ? "var(--color-purple)" : "rgba(243, 139, 168, 0.15)",
+                                  color: isActive ? "#11111b" : "var(--color-red)",
+                                  padding: "2px 5px",
+                                  borderRadius: "3px",
+                                  cursor: "pointer",
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  fontWeight: "bold",
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  textDecoration: isActive ? "none" : "line-through",
+                                  border: isActive ? "none" : "1px dashed var(--color-red)",
+                                  opacity: isActive ? 1 : 0.75
+                                }}
+                                title={`${sub.name} - ${sub.amount} (${isActive ? "Active" : "Inactive"})`}
+                              >
+                                <span>{sub.name}</span>
+                                <span>{sub.amount}</span>
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
                     </div>
                   );
@@ -1900,6 +1944,49 @@ function App() {
         </div>
       )}
 
+      {/* --- Expanded calendar day --- */}
+      {expandedCalDay !== null && (
+        <div className="modal-overlay" onClick={() => setExpandedCalDay(null)}>
+          <div className="modal-content calendar-day-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <span>
+                {MONTHS[calMonth]} {expandedCalDay}, {calYear}
+                {" — "}
+                {expandedDaySubs.length} subscription
+                {expandedDaySubs.length === 1 ? "" : "s"}
+              </span>
+              <button className="modal-close-btn" onClick={() => setExpandedCalDay(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="calendar-day-list">
+                {expandedDaySubs.map(([id, sub]) => {
+                  const isActive = (sub.status || "active") === "active";
+                  return (
+                    <button
+                      type="button"
+                      key={id}
+                      className={`calendar-day-list-item ${isActive ? "active" : "inactive"}`}
+                      onClick={() => {
+                        const record = subscriptionsMap[id] ?? sub;
+                        setExpandedCalDay(null);
+                        handleSubscriptionSelect(id, record);
+                      }}
+                    >
+                      <span className="calendar-day-list-name">{sub.name}</span>
+                      <span className="calendar-day-list-meta">
+                        {sub.account ? `${sub.account} · ` : ""}
+                        {sub.amount}
+                        {sub.period ? ` · ${formatPeriod(sub.period)}` : ""}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* --- Subscriptions Add/Edit Modal --- */}
       {isSubModalOpen && (
         <div className="modal-overlay" onClick={closeSubModal}>
@@ -1942,13 +2029,14 @@ function App() {
                   <select
                     className="input-field"
                     value={subPeriod}
-                    onChange={(e) => setSubPeriod(e.target.value as "monthly" | "annual")}
+                    onChange={(e) => setSubPeriod(e.target.value as SubscriptionPeriod)}
                   >
                     <option value="monthly">Monthly</option>
+                    <option value="every_two_months">Every two months</option>
                     <option value="annual">Annual</option>
                   </select>
                 </div>
-                {subPeriod === "annual" && (
+                {periodUsesDueMonth(subPeriod) && (
                   <div className="form-group">
                     <label>Due Month:</label>
                     <select
@@ -1965,7 +2053,7 @@ function App() {
                   </div>
                 )}
                 <div className="form-group">
-                  <label>{subPeriod === "annual" ? "Due Day:" : "Due Date:"}</label>
+                  <label>{periodUsesDueMonth(subPeriod) ? "Due Day:" : "Due Date:"}</label>
                   <select
                     className="input-field"
                     value={subDueDate}

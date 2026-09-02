@@ -195,7 +195,31 @@ async function rebuildApp(appId: string) {
   }
 }
 
+async function backupRepo() {
+  const button = document.querySelector("#btn-backup") as HTMLButtonElement | null;
+  const status = document.querySelector("#backup-status") as HTMLElement | null;
+  if (!button || !status) return;
+
+  button.disabled = true;
+  status.hidden = false;
+  status.classList.remove("error");
+  status.textContent = "Creating zip backup…";
+
+  try {
+    const path = await invoke<string>("backup_repo");
+    status.textContent = `Backup saved to ${path}`;
+  } catch (error) {
+    status.classList.add("error");
+    status.textContent = String(error);
+  } finally {
+    button.disabled = false;
+  }
+}
+
 window.addEventListener("DOMContentLoaded", () => {
+  document.querySelector("#btn-backup")?.addEventListener("click", () => {
+    void backupRepo();
+  });
   void refreshStatus();
   window.setInterval(() => {
     void refreshStatus();

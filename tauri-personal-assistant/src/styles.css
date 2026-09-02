@@ -30,6 +30,34 @@ body {
   margin-bottom: 2rem;
 }
 
+.header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.btn-backup {
+  color: #fff;
+  background: #8e4ec6;
+  flex-shrink: 0;
+}
+
+.btn-backup:hover:not(:disabled) {
+  background: #7b3fb0;
+}
+
+.backup-status {
+  margin: 0.75rem 0 0;
+  color: #81c995;
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.backup-status.error {
+  color: #f28b82;
+}
+
 .header h1 {
   margin: 0 0 0.35rem;
   font-size: 1.75rem;
