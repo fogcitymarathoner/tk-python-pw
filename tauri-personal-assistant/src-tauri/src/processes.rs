@@ -16,12 +16,12 @@ const WIKI_PORT: u16 = 8899;
 const WIKI_URL: &str = "http://localhost:8899";
 
 const PERSONAL_DATA_DIR: &str =
-    r"C:\Users\marc\Documents\repos\firebase_pw\tauri\src-tauri\target\release";
+    r"C:\Users\marc\Documents\repos\firebase_pw\tauri\src-tauri\target\x86_64-pc-windows-msvc\release";
 const PERSONAL_DATA_EXE: &str = "personal-data.exe";
 const PERSONAL_DATA_BUILD_DIR: &str = r"C:\Users\marc\Documents\repos\firebase_pw\tauri";
 
 const GMAIL_FILTER_DIR: &str =
-    r"C:\Users\marc\Documents\repos\firebase_pw\tauri-email-filters\src-tauri\target\release";
+    r"C:\Users\marc\Documents\repos\firebase_pw\tauri-email-filters\src-tauri\target\x86_64-pc-windows-msvc\release";
 const GMAIL_FILTER_EXE: &str = "gmail-filter-editor.exe";
 const GMAIL_FILTER_EXE_FALLBACK: &str = "tauri-app.exe";
 const GMAIL_FILTER_BUILD_DIR: &str =

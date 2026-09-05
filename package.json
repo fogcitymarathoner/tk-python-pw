@@ -4,11 +4,16 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "setup": "tsx scripts/setup.ts",
+    
+    "tauri:build": "tsx scripts/tauri-build.ts"
   },
   "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.5.3"
+    "typescript": "^5.5.3",
+    "tsx": "^4.19.1",
+    "@types/node": "^22.5.0"
   },
   "private": true
 }
