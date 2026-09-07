@@ -1,6 +1,13 @@
-# Tauri + Vanilla TS
-
-This template should help get you started developing with Tauri in vanilla HTML, CSS and Typescript.
+# Testing Commands
+```
+npm test — Jest
+```
+```
+npm run test:coverage — Jest with coverage
+```
+```
+npm run test:e2e — Playwright
+```
 
 ## Recommended IDE Setup
 

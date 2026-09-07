@@ -8,94 +8,29 @@ import {
   StockFeatures,
 } from "@tanstack/react-table";
 import "./App.css";
-
-// --- Types ---
-interface Category {
-  id: number;
-  remoteId: string | null;
-  name: string;
-  userId: string;
-}
-
-interface Vendor {
-  id: number;
-  remoteId: string | null;
-  name: string;
-  userId: string;
-}
-
-interface Expense {
-  localId: number;
-  remoteId: string | null;
-  vendorName: string;
-  vendorId: number | null;
-  categoryId: number | null;
-  categoryName: string;
-  amount: string;
-  date: string;
-  memo: string | null;
-  userId: string;
-}
-
-interface PasswordRecord {
-  vendor: string;
-  account: string;
-  pw: string;
-  memo?: string;
-}
-
-type SubscriptionPeriod = "monthly" | "annual" | "every_two_months";
-
-interface SubscriptionRecord {
-  name: string;
-  account: string;
-  amount: string;
-  dueDate: string;
-  memo: string;
-  period?: SubscriptionPeriod;
-  status?: "active" | "inactive";
-}
-
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
-];
-
-const PERIOD_LABELS: Record<SubscriptionPeriod, string> = {
-  monthly: "Monthly",
-  annual: "Annual",
-  every_two_months: "Every two months",
-};
-
-const CALENDAR_DAY_PREVIEW_COUNT = 4;
-
-function formatPeriod(period?: string): string {
-  if (period && period in PERIOD_LABELS) {
-    return PERIOD_LABELS[period as SubscriptionPeriod];
-  }
-  return PERIOD_LABELS.monthly;
-}
-
-function periodUsesDueMonth(period?: string): boolean {
-  return period === "annual" || period === "every_two_months";
-}
-
-function parseDueMonthName(dueDate: string): string | undefined {
-  return MONTHS.find((m) => dueDate.toLowerCase().includes(m.toLowerCase()));
-}
-
-function monthMatchesPeriod(period: string | undefined, dueDate: string, calMonth: number): boolean {
-  if (period === "annual") {
-    const monthName = parseDueMonthName(dueDate);
-    return monthName ? MONTHS[calMonth] === monthName : false;
-  }
-  if (period === "every_two_months") {
-    const monthName = parseDueMonthName(dueDate);
-    const anchor = monthName ? MONTHS.indexOf(monthName) : 0;
-    return ((calMonth - anchor) % 2 + 2) % 2 === 0;
-  }
-  return true;
-}
+import type {
+  Category,
+  Vendor,
+  Expense,
+  PasswordRecord,
+  SubscriptionPeriod,
+  SubscriptionRecord,
+} from "./types";
+import {
+  MONTHS,
+  CALENDAR_DAY_PREVIEW_COUNT,
+  formatPeriod,
+  periodUsesDueMonth,
+  parseDueMonthName,
+  getOrdinalDay,
+  createPassword,
+  filterAndSortPasswords,
+  filterAndSortSubscriptions,
+  getSubsForDay as findSubsForDay,
+  sortExpenses as sortExpenseRows,
+  mostUsedCategoryForVendor,
+  clampPaneWidth,
+} from "./lib/appLogic";
 
 function App() {
   // --- Global App State ---
@@ -189,14 +124,14 @@ function App() {
         const container = document.querySelector(".paned-container");
         if (container) {
           const rect = container.getBoundingClientRect();
-          const newWidth = Math.max(150, Math.min(500, e.clientX - rect.left));
+          const newWidth = clampPaneWidth(e.clientX - rect.left);
           setCol1Width(newWidth);
         }
       } else if (isResizing2) {
         const container = document.querySelector(".paned-container");
         if (container) {
           const rect = container.getBoundingClientRect();
-          const newWidth = Math.max(150, Math.min(500, e.clientX - rect.left - col1Width));
+          const newWidth = clampPaneWidth(e.clientX - rect.left - col1Width);
           setCol2Width(newWidth);
         }
       }
@@ -325,12 +260,7 @@ function App() {
   };
 
   const generatePassword = () => {
-    const allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~@!#$%^&*()/:;?,.<>_-";
-    let generated = "";
-    for (let i = 0; i < pwLength; i++) {
-      generated += allowed.charAt(Math.floor(Math.random() * allowed.length));
-    }
-    setPwPassword(generated);
+    setPwPassword(createPassword(pwLength));
     setStatusMsg(`Generated ${pwLength}-character strong password.`);
   };
 
@@ -661,21 +591,7 @@ function App() {
     if (!vend) return;
 
     try {
-      const usages: Record<string, number> = {};
-      expenses.forEach(exp => {
-        if (exp.vendorName.toLowerCase() === vName.toLowerCase() && exp.categoryName) {
-          usages[exp.categoryName] = (usages[exp.categoryName] || 0) + 1;
-        }
-      });
-
-      let mostUsedCat = "";
-      let maxCount = 0;
-      Object.entries(usages).forEach(([catName, count]) => {
-        if (count > maxCount) {
-          maxCount = count;
-          mostUsedCat = catName;
-        }
-      });
+      const mostUsedCat = mostUsedCategoryForVendor(expenses, vName);
 
       if (mostUsedCat) {
         setExpCategory(mostUsedCat);
@@ -1041,96 +957,18 @@ function App() {
 
   // Click Column Sorting
   const sortExpenses = (col: "d" | "v" | "a" | "m") => {
-    const sorted = [...expenses].sort((a, b) => {
-      let valA: any = "";
-      let valB: any = "";
-
-      if (col === "d") {
-        valA = new Date(a.date).getTime() || 0;
-        valB = new Date(b.date).getTime() || 0;
-      } else if (col === "v") {
-        valA = a.vendorName.toLowerCase();
-        valB = b.vendorName.toLowerCase();
-      } else if (col === "a") {
-        valA = parseFloat(a.amount) || 0;
-        valB = parseFloat(b.amount) || 0;
-      } else if (col === "m") {
-        valA = (a.memo || "").toLowerCase();
-        valB = (b.memo || "").toLowerCase();
-      }
-
-      if (valA < valB) return sortAscending ? -1 : 1;
-      if (valA > valB) return sortAscending ? 1 : -1;
-      return 0;
-    });
-    setExpenses(sorted);
+    setExpenses(sortExpenseRows(expenses, col, sortAscending));
   };
 
   // --- Filtering computations ---
-  const filteredPasswords = Object.entries(passwordsMap)
-    .filter(([_, record]) => {
-      const term = pwSearch.toLowerCase();
-      return (
-        record.vendor.toLowerCase().includes(term) ||
-        record.account.toLowerCase().includes(term) ||
-        (record.memo || "").toLowerCase().includes(term)
-      );
-    })
-    .sort((a, b) => {
-      const vendorA = a[1].vendor.toLowerCase();
-      const vendorB = b[1].vendor.toLowerCase();
-      if (vendorA < vendorB) return pwSortAscending ? -1 : 1;
-      if (vendorA > vendorB) return pwSortAscending ? 1 : -1;
-      return 0;
-    });
+  const filteredPasswords = filterAndSortPasswords(passwordsMap, pwSearch, pwSortAscending);
 
-  const getOrdinalDay = (n: number): string => {
-    const s = ["th", "st", "nd", "rd"];
-    const v = n % 100;
-    return n + (s[(v - 20) % 10] || s[v] || s[0]);
-  };
-
-  const parseDueDateToNumber = (dueDate: string): number => {
-    if (!dueDate) return 999;
-    const clean = dueDate.trim();
-    
-    // Check if it's a full date (e.g. YYYY-MM-DD or MM/DD/YYYY)
-    if (clean.includes("-") || clean.includes("/")) {
-      const parsed = Date.parse(clean);
-      if (!isNaN(parsed)) {
-        return new Date(parsed).getDate();
-      }
-    }
-
-    // Extract leading/any sequence of digits (e.g. "1st" -> 1, "22nd" -> 22)
-    const match = clean.match(/\d+/);
-    if (match) {
-      return parseInt(match[0], 10);
-    }
-    return 999;
-  };
-
-  const filteredSubscriptions = Object.entries(subscriptionsMap)
-    .filter(([_, record]) => {
-      // 1. Search term filter
-      const term = subSearch.toLowerCase();
-      const matchesSearch = record.name.toLowerCase().includes(term) || record.account.toLowerCase().includes(term);
-      if (!matchesSearch) return false;
-
-      // 2. Status filter
-      const recordStatus = record.status || "active";
-      if (subStatusFilter !== "all" && recordStatus !== subStatusFilter) {
-        return false;
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      const dayA = parseDueDateToNumber(a[1].dueDate);
-      const dayB = parseDueDateToNumber(b[1].dueDate);
-      if (dayA < dayB) return subSortAscending ? -1 : 1;
-      if (dayA > dayB) return subSortAscending ? 1 : -1;
-      return 0;
-    });
+  const filteredSubscriptions = filterAndSortSubscriptions(
+    subscriptionsMap,
+    subSearch,
+    subStatusFilter,
+    subSortAscending,
+  );
 
   const handlePrevMonth = () => {
     setExpandedCalDay(null);
@@ -1155,71 +993,14 @@ function App() {
   };
 
   const getSubsForDay = (dayNum: number): [string, SubscriptionRecord][] => {
-    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-
-    return Object.entries(subscriptionsMap)
-      .filter(([_, sub]) => {
-        // Status Filter should work on calendar grid!
-        const subStatusValue = sub.status || "active";
-        if (subStatusFilter !== "all" && subStatusValue !== subStatusFilter) {
-          return false;
-        }
-
-        // Also apply the search filter on the calendar grid if there's any search term
-        const term = subSearch.toLowerCase();
-        if (term) {
-          const matchesSearch = sub.name.toLowerCase().includes(term) || sub.account.toLowerCase().includes(term);
-          if (!matchesSearch) return false;
-        }
-
-        const clean = sub.dueDate.trim();
-        
-        // Full date match (YYYY-MM-DD or MM/DD/YYYY)
-        if (clean.includes("-") || clean.includes("/")) {
-          const parsed = Date.parse(clean);
-          if (!isNaN(parsed)) {
-            const d = new Date(parsed);
-            return d.getDate() === dayNum && d.getMonth() === calMonth && d.getFullYear() === calYear;
-          }
-        }
-
-        if (!monthMatchesPeriod(sub.period, clean, calMonth)) {
-          return false;
-        }
-
-        // Recurring month day (e.g. "15th" -> 15)
-        const match = clean.match(/\d+/);
-        if (match) {
-          const subDay = parseInt(match[0], 10);
-          // Standard match: the subscription's day is exactly equal to today's day number
-          if (subDay === dayNum && subDay <= daysInMonth) {
-            return true;
-          }
-          // Overflow match: if this is the last day of the month,
-          // and the subscription is scheduled on a day that exceeds this month's length
-          if (dayNum === daysInMonth && subDay > daysInMonth) {
-            return true;
-          }
-        }
-        return false;
-      })
-      .map(([id, sub]) => {
-        const clean = sub.dueDate.trim();
-        const match = clean.match(/\d+/);
-        if (match) {
-          const subDay = parseInt(match[0], 10);
-          if (dayNum === daysInMonth && subDay > daysInMonth) {
-            return [
-              id,
-              {
-                ...sub,
-                name: `${sub.name}*`, // Mark as overflow on last day of shorter months
-              },
-            ];
-          }
-        }
-        return [id, sub];
-      });
+    return findSubsForDay(
+      dayNum,
+      subscriptionsMap,
+      calYear,
+      calMonth,
+      subStatusFilter,
+      subSearch,
+    );
   };
 
   const expandedDaySubs = expandedCalDay !== null ? getSubsForDay(expandedCalDay) : [];

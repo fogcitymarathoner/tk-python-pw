@@ -5,6 +5,20 @@ import {
   serializeXml,
   FilterEntry
 } from "./xmlService";
+import {
+  applyPropertyChange,
+  buildFilterReport,
+  createEmptyFilter,
+  deleteFilterAt,
+  dragReorder,
+  duplicateFilterAt,
+  filterEntriesBySearch,
+  getFileName,
+  insertFilterAt,
+  moveFilter,
+  parseInsertPosition,
+  shouldIgnorePointerDown,
+} from "./lib/filterLogic";
 import "./App.css";
 
 export default function App() {
@@ -92,12 +106,6 @@ export default function App() {
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(() => {
     return localStorage.getItem("tauri_email_filters_current_path");
   });
-
-  // Helper to extract the filename from a full path
-  const getFileName = (path: string) => {
-    const parts = path.split(/[/\\]/);
-    return parts[parts.length - 1];
-  };
 
   // Keep the localStorage cache fully in sync with the state variables
   useEffect(() => {
@@ -354,36 +362,7 @@ export default function App() {
 
   // Human-readable Gmail report exporter & clipboard copy (without pop-ups, reports in status bar)
   const handleGenerateReport = async () => {
-    let report = "The following filters are applied to all incoming mail:\n";
-    
-    const formatCondition = (val: string) => {
-      if (!val) return "";
-      // If it contains spaces, dots, dashes, brackets, @, or quotes, wrap in parentheses
-      if (/[.\-@\[\]"\s]/.test(val)) {
-        return `(${val})`;
-      }
-      return val;
-    };
-
-    let filterNum = 1;
-    for (const entry of entries) {
-      const properties = entry.properties;
-      const matchParts = [];
-      if (properties.from) {
-        matchParts.push(`from:${formatCondition(properties.from)}`);
-      }
-      if (properties.to) {
-        matchParts.push(`to:${formatCondition(properties.to)}`);
-      }
-      if (properties.subject) {
-        matchParts.push(`subject:${formatCondition(properties.subject)}`);
-      }
-      
-      const matchesStr = matchParts.join(" ");
-      
-      report += `Filter #${filterNum}: ${matchesStr}\n`;
-      filterNum++;
-    }
+    const report = buildFilterReport(entries);
 
     // Natively copy to clipboard with 0 pop-ups/toast interruptions
     try {
@@ -458,22 +437,7 @@ export default function App() {
   // Field change updates
   const handlePropertyChange = (name: string, val: string) => {
     if (selectedIdx === null) return;
-    const updatedEntries = [...entries];
-    const updatedProperties = { ...updatedEntries[selectedIdx].properties };
-
-    if (val === "") {
-      delete updatedProperties[name];
-    } else {
-      updatedProperties[name] = val;
-    }
-
-    updatedEntries[selectedIdx] = {
-      ...updatedEntries[selectedIdx],
-      properties: updatedProperties,
-      updated: new Date().toISOString().substring(0, 19) + "Z"
-    };
-
-    setEntries(updatedEntries);
+    setEntries(applyPropertyChange(entries, selectedIdx, name, val));
     setStatus("modified");
     setStatusMsg("Unsaved changes present");
   };
@@ -485,45 +449,20 @@ export default function App() {
     if (selectedIdx !== null) {
       targetIdx = selectedIdx;
     } else if (entries.length > 0) {
-      // No filter is selected, prompt the user for the filter number to insert in front of
       const input = prompt(
         `No filter is selected.\nEnter the filter number (1 to ${entries.length}) that you want to insert the new filter in front of:\n(Enter "1" for the beginning, or cancel to abort)`
       );
-      
-      // If user cancelled, abort the operation
-      if (input === null) return;
-      
-      const trimmed = input.trim();
-      if (trimmed === "") {
-        return;
-      }
-      
-      const parsedNum = parseInt(trimmed, 10);
-      if (isNaN(parsedNum) || parsedNum < 1 || parsedNum > entries.length) {
+      const parsed = parseInsertPosition(input, entries.length);
+      if (parsed === "cancel") return;
+      if (parsed === "invalid") {
         alert(`Invalid filter number! Please enter a number between 1 and ${entries.length}.`);
         return;
       }
-      
-      targetIdx = parsedNum - 1; // Convert 1-based to 0-based index
-    } else {
-      // Fallback: if there are no entries at all, insert at index 0
-      targetIdx = 0;
+      targetIdx = parsed;
     }
 
-    const newEntry: FilterEntry = {
-      id: `tag:mail.google.com,2008:filter:z000000${Date.now()}`,
-      title: "Mail Filter",
-      updated: new Date().toISOString().substring(0, 19) + "Z",
-      categoryTerm: "filter",
-      properties: {
-        sizeOperator: "s_sl",
-        sizeUnit: "s_smb"
-      }
-    };
-
-    const updated = [...entries];
-    updated.splice(targetIdx, 0, newEntry);
-    setEntries(updated);
+    const newEntry = createEmptyFilter();
+    setEntries(insertFilterAt(entries, newEntry, targetIdx));
     setSelectedIdx(targetIdx);
     setStatus("modified");
     setStatusMsg("Unsaved changes present");
@@ -532,18 +471,9 @@ export default function App() {
   // Duplicate an existing filter
   const handleDuplicateFilter = (idx: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    const source = entries[idx];
-    const duplicated: FilterEntry = {
-      ...source,
-      id: `tag:mail.google.com,2008:filter:z000000${Date.now()}`,
-      updated: new Date().toISOString().substring(0, 19) + "Z",
-      properties: { ...source.properties }
-    };
-
-    const updated = [...entries];
-    updated.splice(idx + 1, 0, duplicated);
-    setEntries(updated);
-    setSelectedIdx(idx + 1);
+    const result = duplicateFilterAt(entries, idx);
+    setEntries(result.entries);
+    setSelectedIdx(result.selectedIdx);
     setStatus("modified");
     setStatusMsg("Unsaved changes present");
   };
@@ -553,14 +483,9 @@ export default function App() {
     e.stopPropagation();
     if (!confirm("Are you sure you want to delete this filter entry?")) return;
 
-    const updated = entries.filter((_, i) => i !== idx);
-    setEntries(updated);
-
-    if (selectedIdx === idx) {
-      setSelectedIdx(updated.length > 0 ? 0 : null);
-    } else if (selectedIdx !== null && selectedIdx > idx) {
-      setSelectedIdx(selectedIdx - 1);
-    }
+    const result = deleteFilterAt(entries, idx, selectedIdx);
+    setEntries(result.entries);
+    setSelectedIdx(result.selectedIdx);
 
     setStatus("modified");
     setStatusMsg("Unsaved changes present");
@@ -569,15 +494,10 @@ export default function App() {
   // Move up in order
   const moveUp = (idx: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (idx === 0) return;
-    const updated = [...entries];
-    const temp = updated[idx];
-    updated[idx] = updated[idx - 1];
-    updated[idx - 1] = temp;
-    setEntries(updated);
-
-    if (selectedIdx === idx) setSelectedIdx(idx - 1);
-    else if (selectedIdx === idx - 1) setSelectedIdx(idx);
+    const result = moveFilter(entries, idx, "up", selectedIdx);
+    if (!result) return;
+    setEntries(result.entries);
+    setSelectedIdx(result.selectedIdx);
 
     setStatus("modified");
     setStatusMsg("Unsaved changes present");
@@ -586,15 +506,10 @@ export default function App() {
   // Move down in order
   const moveDown = (idx: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (idx === entries.length - 1) return;
-    const updated = [...entries];
-    const temp = updated[idx];
-    updated[idx] = updated[idx + 1];
-    updated[idx + 1] = temp;
-    setEntries(updated);
-
-    if (selectedIdx === idx) setSelectedIdx(idx + 1);
-    else if (selectedIdx === idx + 1) setSelectedIdx(idx);
+    const result = moveFilter(entries, idx, "down", selectedIdx);
+    if (!result) return;
+    setEntries(result.entries);
+    setSelectedIdx(result.selectedIdx);
 
     setStatus("modified");
     setStatusMsg("Unsaved changes present");
@@ -604,13 +519,7 @@ export default function App() {
   const handlePointerDown = (idx: number, e: React.PointerEvent) => {
     // Prevent drag trigger when clicking interactive controls (buttons, inputs)
     const target = e.target as HTMLElement;
-    if (
-      target.tagName === "BUTTON" || 
-      target.closest(".entry-actions") || 
-      target.tagName === "INPUT" || 
-      target.tagName === "SELECT" ||
-      target.closest(".icon-btn")
-    ) {
+    if (shouldIgnorePointerDown(target)) {
       return;
     }
     
@@ -627,11 +536,7 @@ export default function App() {
     if (draggedIndex === null) return;
     if (draggedIndex !== idx) {
       // Live-swap elements inside the state array
-      const updated = [...entries];
-      const [draggedItem] = updated.splice(draggedIndex, 1);
-      updated.splice(idx, 0, draggedItem);
-      
-      setEntries(updated);
+      setEntries(dragReorder(entries, draggedIndex, idx));
       setDraggedIndex(idx);
       setSelectedIdx(idx);
       setStatus("modified");
@@ -640,22 +545,10 @@ export default function App() {
   };
 
   // Filter entries based on the search query
-  const filteredEntries = useMemo(() => {
-    if (!searchTerm.trim()) {
-      return entries.map((entry, idx) => ({ entry, originalIdx: idx }));
-    }
-    const query = searchTerm.toLowerCase();
-    return entries
-      .map((entry, idx) => ({ entry, originalIdx: idx }))
-      .filter(({ entry }) => {
-        return (
-          entry.id.toLowerCase().includes(query) ||
-          Object.values(entry.properties).some((val) =>
-            val.toLowerCase().includes(query)
-          )
-        );
-      });
-  }, [entries, searchTerm]);
+  const filteredEntries = useMemo(
+    () => filterEntriesBySearch(entries, searchTerm),
+    [entries, searchTerm],
+  );
 
 
 
