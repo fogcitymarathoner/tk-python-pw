@@ -157,6 +157,89 @@ button:disabled, .btn:disabled {
   padding: 2px 6px;
 }
 
+button.status-switch {
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+  gap: 8px;
+  color: inherit;
+  justify-content: flex-start;
+}
+
+button.status-switch:hover:not(:disabled),
+button.status-switch:active:not(:disabled) {
+  background: transparent;
+  border: none;
+  transform: none;
+}
+
+.status-switch-track {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background-color: var(--bg-input);
+  border: 1px solid var(--bg-active);
+  flex-shrink: 0;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.status-switch.on .status-switch-track {
+  background-color: rgba(166, 227, 161, 0.28);
+  border-color: var(--color-green);
+  box-shadow: 0 0 10px rgba(166, 227, 161, 0.22);
+}
+
+.status-switch.off .status-switch-track {
+  background-color: rgba(243, 139, 168, 0.14);
+  border-color: var(--color-red);
+}
+
+.status-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.status-switch.on .status-switch-thumb {
+  transform: translateX(20px);
+  background-color: var(--color-green);
+}
+
+.status-switch.off .status-switch-thumb {
+  background-color: var(--color-red);
+}
+
+.status-switch-text {
+  font-size: 0.85em;
+  font-weight: bold;
+  min-width: 7.5em;
+  text-align: left;
+}
+
+.status-switch.on .status-switch-text {
+  color: var(--color-green);
+}
+
+.status-switch.off .status-switch-text {
+  color: var(--color-red);
+}
+
+.status-switch:focus-visible {
+  outline: none;
+}
+
+.status-switch:focus-visible .status-switch-track {
+  outline: 2px solid var(--color-lavender);
+  outline-offset: 2px;
+}
+
 /* Notebook / Tabs Style */
 .notebook-tabs {
   display: flex;
@@ -218,7 +301,7 @@ button:disabled, .btn:disabled {
   border-radius: 6px;
 }
 
-.search-bar input, .input-field {
+.search-bar input:not([type="radio"]), .input-field {
   font-family: var(--font-mono);
   background-color: var(--bg-input);
   color: var(--text-main);
@@ -229,8 +312,83 @@ button:disabled, .btn:disabled {
   font-size: 0.95em;
 }
 
-.search-bar input:focus, .input-field:focus {
+.search-bar input:not([type="radio"]):focus, .input-field:focus {
   border-color: var(--color-purple);
+}
+
+.status-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-right: 8px;
+  padding: 4px 12px;
+  border: 1px solid var(--bg-active);
+  border-radius: 999px;
+  background-color: var(--bg-input);
+}
+
+.status-filter-label {
+  color: var(--text-sub);
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+.status-filter-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: bold;
+  color: var(--text-sub);
+  user-select: none;
+}
+
+.status-filter-option:has(input:checked) {
+  color: var(--text-main);
+}
+
+.status-filter-option input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 2px solid var(--text-muted);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.status-filter-option input:checked {
+  border-color: var(--color-purple);
+  box-shadow: inset 0 0 0 3px var(--bg-input), inset 0 0 0 7px var(--color-purple);
+}
+
+.status-filter-option input:focus-visible {
+  outline: 2px solid var(--color-lavender);
+  outline-offset: 2px;
+}
+
+.status-cell {
+  text-align: center;
+}
+
+.status-pip {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.status-pip.active {
+  background-color: var(--color-green);
+  box-shadow: 0 0 8px rgba(166, 227, 161, 0.65);
+}
+
+.status-pip.inactive {
+  background-color: var(--color-red);
+  box-shadow: 0 0 8px rgba(243, 139, 168, 0.5);
 }
 
 .search-hint {
@@ -308,6 +466,24 @@ td {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+th.pw-copy-col,
+td.pw-copy-col {
+  width: 44px;
+  padding: 4px;
+  text-align: center;
+  overflow: visible;
+}
+
+td.pw-copy-col {
+  cursor: default;
+}
+
+.pw-copy-btn {
+  padding: 2px 6px;
+  line-height: 1.2;
+  min-width: 0;
 }
 
 tr {
@@ -528,6 +704,13 @@ tr.selected {
 .date-input-container input {
   flex: 1;
   min-width: 130px;
+  color-scheme: dark;
+}
+
+/* Native date inputs already include a calendar control; hide it so only the 📅 button remains. */
+.date-input-container input[type="date"]::-webkit-calendar-picker-indicator {
+  display: none;
+  -webkit-appearance: none;
 }
 
 .date-input-container button {

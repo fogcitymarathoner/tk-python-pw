@@ -11,9 +11,9 @@ test.describe("subscriptions", () => {
     const list = page.locator(".tab-panel.active");
     await expect(list.getByRole("cell", { name: "Netflix" })).toBeVisible();
     await expect(list.getByRole("cell", { name: "Adobe" })).toHaveCount(0);
-    await page.getByRole("button", { name: /Inactive/ }).click();
+    await page.getByRole("radio", { name: "Inactive" }).click();
     await expect(list.getByRole("cell", { name: "Adobe" })).toBeVisible();
-    await page.getByRole("button", { name: /All/ }).click();
+    await page.getByRole("radio", { name: "All" }).click();
     await page.getByPlaceholder("Search subscriptions...").fill("net");
     await expect(list.getByRole("cell", { name: "Netflix" })).toBeVisible();
     await expect(list.getByRole("cell", { name: "Adobe" })).toHaveCount(0);
@@ -46,14 +46,15 @@ test.describe("subscriptions", () => {
 
   test("edits, toggles, and deletes a subscription", async ({ page }) => {
     await page.getByText("Netflix").click();
+    await expect(page.getByRole("switch", { name: "Status" })).toHaveText("Active");
     await formControl(page, "Service:").fill("Netflix Family");
-    await formControl(page, "Status:").selectOption("inactive");
+    await page.getByRole("switch", { name: "Status" }).click();
+    await expect(page.getByRole("switch", { name: "Status" })).toHaveText("Inactive");
     await page.getByRole("button", { name: /Update/ }).click();
     await expect(page.getByText("✅ Subscription 'Netflix Family' updated")).toBeVisible();
 
-    await page.getByRole("button", { name: /All/ }).click();
-    await page.getByRole("row", { name: /Netflix Family/ }).locator(".status-badge").click();
-    await expect(page.getByText(/status set to active/)).toBeVisible();
+    await page.getByRole("radio", { name: "All" }).click();
+    await expect(page.getByRole("row", { name: /Netflix Family/ }).locator(".status-pip.inactive")).toBeVisible();
 
     await page.getByRole("cell", { name: "Netflix Family" }).click();
     await dismissNextDialog(page);

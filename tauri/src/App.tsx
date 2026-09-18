@@ -32,6 +32,34 @@ import {
   clampPaneWidth,
 } from "./lib/appLogic";
 
+function StatusSwitch({
+  checked,
+  onToggle,
+  ariaLabel,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  ariaLabel: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      className={`status-switch ${checked ? "on" : "off"}`}
+      onClick={onToggle}
+    >
+      <span className="status-switch-track" aria-hidden="true">
+        <span className="status-switch-thumb" />
+      </span>
+      <span className="status-switch-text" aria-hidden="true">
+        {checked ? "Active" : "Inactive"}
+      </span>
+    </button>
+  );
+}
+
 function App() {
   // --- Global App State ---
   const [activeTab, setActiveTab] = useState<"passwords" | "subscriptions" | "expenses">("expenses");
@@ -61,6 +89,7 @@ function App() {
   const [pwLength, setPwLength] = useState<12 | 14>(12);
   const [pwOriginal, setPwOriginal] = useState<string>("");
   const [copiedText, setCopiedText] = useState<boolean>(false);
+  const [copiedPwId, setCopiedPwId] = useState<string | null>(null);
   const [pwSortAscending, setPwSortAscending] = useState<boolean>(true);
 
   // --- Subscriptions State ---
@@ -264,16 +293,35 @@ function App() {
     setStatusMsg(`Generated ${pwLength}-character strong password.`);
   };
 
-  const copyPasswordToClipboard = async () => {
-    if (!pwPassword) return;
+  const copyTextToClipboard = async (password: string) => {
+    if (!password) return false;
     try {
-      await navigator.clipboard.writeText(pwPassword);
-      setCopiedText(true);
+      await navigator.clipboard.writeText(password);
       setStatusMsg("✅ Password copied to clipboard!");
-      setTimeout(() => setCopiedText(false), 2000);
+      return true;
     } catch (err) {
       setStatusMsg("❌ Failed to copy to clipboard.");
+      return false;
     }
+  };
+
+  const copyPasswordToClipboard = async () => {
+    const ok = await copyTextToClipboard(pwPassword);
+    if (!ok) return;
+    setCopiedText(true);
+    setTimeout(() => setCopiedText(false), 2000);
+  };
+
+  const handleCopyListPassword = async (
+    event: React.MouseEvent,
+    id: string,
+    password: string,
+  ) => {
+    event.stopPropagation();
+    const ok = await copyTextToClipboard(password);
+    if (!ok) return;
+    setCopiedPwId(id);
+    setTimeout(() => setCopiedPwId((current) => (current === id ? null : current)), 2000);
   };
 
   const handleAddPassword = async () => {
@@ -380,28 +428,6 @@ function App() {
   const closeSubModal = () => {
     setIsSubModalOpen(false);
     setSelectedSubId(null);
-  };
-
-  const handleToggleSubscriptionStatus = async (id: string, record: SubscriptionRecord, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const nextStatus = (record.status || "active") === "active" ? "inactive" : "active";
-    try {
-      await invoke("update_subscription", {
-        uid: userUid,
-        id: id,
-        name: record.name,
-        account: record.account,
-        amount: record.amount,
-        dueDate: record.dueDate,
-        memo: record.memo,
-        period: record.period || "monthly",
-        status: nextStatus,
-      });
-      setStatusMsg(`✅ Subscription '${record.name}' status set to ${nextStatus}`);
-      loadSubscriptions();
-    } catch (err: any) {
-      setStatusMsg(`❌ Error toggling status: ${err}`);
-    }
   };
 
   const handleAddSubscription = async () => {
@@ -1113,6 +1139,7 @@ function App() {
             <table>
               <thead>
                 <tr>
+                  <th className="pw-copy-col" aria-label="Copy password" />
                   <th
                     onClick={() => setPwSortAscending(!pwSortAscending)}
                     style={{ cursor: "pointer", userSelect: "none" }}
@@ -1151,6 +1178,18 @@ function App() {
                     onClick={() => handlePasswordSelect(id, r)}
                     style={{ cursor: "pointer" }}
                   >
+                    <td className="pw-copy-col">
+                      <button
+                        type="button"
+                        className="pw-copy-btn"
+                        aria-label={`Copy ${r.vendor || r.account || "entry"} password`}
+                        title="Copy password to clipboard"
+                        disabled={!r.pw}
+                        onClick={(event) => handleCopyListPassword(event, id, r.pw)}
+                      >
+                        {copiedPwId === id ? "✅" : "📋"}
+                      </button>
+                    </td>
                     <td>{r.vendor}</td>
                     <td>{r.account}</td>
                     <td>{r.pw}</td>
@@ -1159,7 +1198,7 @@ function App() {
                 ))}
                 {filteredPasswords.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                    <td colSpan={5} style={{ textAlign: "center", color: "var(--text-muted)" }}>
                       No passwords found
                     </td>
                   </tr>
@@ -1198,28 +1237,35 @@ function App() {
               </button>
             </div>
 
-            <div className="view-toggle-group" style={{ marginRight: "10px", display: "flex", gap: "4px" }}>
-              <button
-                className={`tab-btn ${subStatusFilter === "active" ? "active" : ""}`}
-                onClick={() => setSubStatusFilter("active")}
-                style={{ padding: "4px 10px", fontSize: "0.9em" }}
-              >
-                🟢 Active
-              </button>
-              <button
-                className={`tab-btn ${subStatusFilter === "inactive" ? "active" : ""}`}
-                onClick={() => setSubStatusFilter("inactive")}
-                style={{ padding: "4px 10px", fontSize: "0.9em" }}
-              >
-                🔴 Inactive
-              </button>
-              <button
-                className={`tab-btn ${subStatusFilter === "all" ? "active" : ""}`}
-                onClick={() => setSubStatusFilter("all")}
-                style={{ padding: "4px 10px", fontSize: "0.9em" }}
-              >
-                🌐 All
-              </button>
+            <div className="status-filter" role="radiogroup" aria-label="Status">
+              <span className="status-filter-label">Status:</span>
+              <label className="status-filter-option">
+                <input
+                  type="radio"
+                  name="sub-status-filter"
+                  checked={subStatusFilter === "active"}
+                  onChange={() => setSubStatusFilter("active")}
+                />
+                Active
+              </label>
+              <label className="status-filter-option">
+                <input
+                  type="radio"
+                  name="sub-status-filter"
+                  checked={subStatusFilter === "inactive"}
+                  onChange={() => setSubStatusFilter("inactive")}
+                />
+                Inactive
+              </label>
+              <label className="status-filter-option">
+                <input
+                  type="radio"
+                  name="sub-status-filter"
+                  checked={subStatusFilter === "all"}
+                  onChange={() => setSubStatusFilter("all")}
+                />
+                All
+              </label>
             </div>
 
             <span className="search-hint" style={{ marginRight: "auto" }}>(search by name or account)</span>
@@ -1259,10 +1305,13 @@ function App() {
                       <td>{r.amount}</td>
                       <td>{formatPeriod(r.period)}</td>
                       <td>{r.dueDate}</td>
-                      <td onClick={(e) => handleToggleSubscriptionStatus(id, r, e)}>
-                        <span className={`status-badge ${r.status || "active"}`} style={{ cursor: "pointer", userSelect: "none" }} title="Click to toggle status">
-                          {(r.status || "active").toUpperCase()}
-                        </span>
+                      <td className="status-cell">
+                        <span
+                          className={`status-pip ${(r.status || "active") === "active" ? "active" : "inactive"}`}
+                          role="img"
+                          aria-label={(r.status || "active") === "active" ? "Active" : "Inactive"}
+                          title={(r.status || "active") === "active" ? "Active" : "Inactive"}
+                        />
                       </td>
                       <td>{r.memo}</td>
                     </tr>
@@ -1862,14 +1911,11 @@ function App() {
                 </div>
                 <div className="form-group">
                   <label>Status:</label>
-                  <select
-                    className="input-field"
-                    value={subStatus}
-                    onChange={(e) => setSubStatus(e.target.value as "active" | "inactive")}
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
+                  <StatusSwitch
+                    checked={subStatus === "active"}
+                    ariaLabel="Status"
+                    onToggle={() => setSubStatus(subStatus === "active" ? "inactive" : "active")}
+                  />
                 </div>
               </div>
               <div className="form-actions" style={{ marginTop: "20px" }}>

@@ -130,14 +130,33 @@ describe("Passwords tab", () => {
 
     (navigator.clipboard.writeText as jest.Mock).mockRejectedValueOnce(new Error("denied"));
     await user.click(screen.getByText("GitHub"));
-    fireEvent.click(screen.getByRole("button", { name: /Copy/ }));
+    const failModal = screen.getByText("🔑 Edit Password").closest(".modal-content") as HTMLElement;
+    fireEvent.click(within(failModal).getByRole("button", { name: /Copy/ }));
     expect(await screen.findByText(/Failed to copy to clipboard/)).toBeInTheDocument();
   });
 
   it("does nothing when copying an empty password", async () => {
     const { user } = await openPasswords();
     await user.click(screen.getByRole("button", { name: /Add Password/ }));
-    await user.click(screen.getByRole("button", { name: /Copy/ }));
+    const modal = screen.getByText("🔑 Add Password").closest(".modal-content") as HTMLElement;
+    await user.click(within(modal).getByRole("button", { name: /Copy/ }));
     expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+  });
+
+  it("copies a password from the list without opening the editor", async () => {
+    const { user } = await openPasswords();
+    await user.click(screen.getByRole("button", { name: "Copy GitHub password" }));
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith("secret1"));
+    expect(await screen.findByText("✅ Password copied to clipboard!")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy GitHub password" })).toHaveTextContent("✅");
+    expect(screen.queryByText("🔑 Edit Password")).not.toBeInTheDocument();
+  });
+
+  it("shows a clipboard error when list copy fails", async () => {
+    const { user } = await openPasswords();
+    (navigator.clipboard.writeText as jest.Mock).mockRejectedValueOnce(new Error("denied"));
+    await user.click(screen.getByRole("button", { name: "Copy Adobe password" }));
+    expect(await screen.findByText(/Failed to copy to clipboard/)).toBeInTheDocument();
+    expect(screen.queryByText("🔑 Edit Password")).not.toBeInTheDocument();
   });
 });

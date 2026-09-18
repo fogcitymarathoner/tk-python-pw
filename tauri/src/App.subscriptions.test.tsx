@@ -16,11 +16,11 @@ describe("Subscriptions tab", () => {
     expect(panel().getByText("Netflix")).toBeInTheDocument();
     expect(panel().queryByText("Adobe")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Inactive/ }));
+    await user.click(screen.getByRole("radio", { name: "Inactive" }));
     expect(panel().getByText("Adobe")).toBeInTheDocument();
     expect(panel().queryByText("Netflix")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /All/ }));
+    await user.click(screen.getByRole("radio", { name: "All" }));
     expect(panel().getByText("Netflix")).toBeInTheDocument();
     expect(panel().getByText("Adobe")).toBeInTheDocument();
 
@@ -72,18 +72,19 @@ describe("Subscriptions tab", () => {
     expect(screen.getByText("📋 Edit Subscription")).toBeInTheDocument();
 
     const modal = screen.getByText("📋 Edit Subscription").closest(".modal-content") as HTMLElement;
+    expect(within(modal).getByRole("switch", { name: "Status" })).toHaveTextContent("Active");
     await user.clear(within(modal).getAllByRole("textbox")[0]);
     await user.click(within(modal).getByRole("button", { name: /Update/ }));
     expect(window.alert).toHaveBeenCalledWith("Service Name is required.");
 
     await user.type(within(modal).getAllByRole("textbox")[0], "Netflix Family");
-    await user.selectOptions(within(modal).getByDisplayValue("Active"), "inactive");
+    await user.click(within(modal).getByRole("switch", { name: "Status" }));
+    expect(within(modal).getByRole("switch", { name: "Status" })).toHaveTextContent("Inactive");
     await user.click(within(modal).getByRole("button", { name: /Update/ }));
     expect(await screen.findByText("✅ Subscription 'Netflix Family' updated")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /All/ }));
-    await user.click(screen.getByText("Netflix Family").closest("tr")!.querySelector(".status-badge")!);
-    expect(await screen.findByText(/status set to active/)).toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "All" }));
+    expect(screen.getByText("Netflix Family").closest("tr")!.querySelector(".status-pip.inactive")).toBeTruthy();
 
     await user.click(screen.getByText("Netflix Family"));
     const deleteModal = screen.getByText("📋 Edit Subscription").closest(".modal-content") as HTMLElement;
@@ -112,7 +113,7 @@ describe("Subscriptions tab", () => {
       },
     });
     await openTab(user, /Subscriptions/);
-    await user.click(screen.getByRole("button", { name: /All/ }));
+    await user.click(screen.getByRole("radio", { name: "All" }));
     await user.click(screen.getByText("Domain"));
     expect(screen.getByDisplayValue("Annual")).toBeInTheDocument();
     expect(screen.getByDisplayValue("March")).toBeInTheDocument();
@@ -185,7 +186,7 @@ describe("Subscriptions tab", () => {
       },
     });
     await openTab(user, /Subscriptions/);
-    await user.click(screen.getByRole("button", { name: /All/ }));
+    await user.click(screen.getByRole("radio", { name: "All" }));
     await user.click(screen.getByRole("button", { name: /Calendar/ }));
     await user.click(screen.getByText("Netflix"));
     expect(screen.getByText("📋 Edit Subscription")).toBeInTheDocument();
@@ -219,10 +220,7 @@ describe("Subscriptions tab", () => {
     await user.click(within(modal).getByRole("button", { name: /Add$/ }));
     expect(await screen.findByText("❌ Error: nope")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /All/ }));
-    await user.click(screen.getByText("Netflix").closest("tr")!.querySelector(".status-badge")!);
-    expect(await screen.findByText("❌ Error toggling status: locked")).toBeInTheDocument();
-
+    await user.click(screen.getByRole("radio", { name: "All" }));
     await user.click(screen.getByText("Netflix"));
     await user.click(screen.getByRole("button", { name: /Update/ }));
     expect(await screen.findByText("❌ Error: locked")).toBeInTheDocument();

@@ -62,6 +62,13 @@ test.describe("passwords", () => {
     await page.getByRole("button", { name: "✖ Cancel" }).click();
     await expect(page.getByText("🔑 Add Password")).toHaveCount(0);
   });
+
+  test("copies a password from the list without opening the editor", async ({ page }) => {
+    const copyBtn = page.getByRole("button", { name: "Copy GitHub password" });
+    await expect(copyBtn).toBeVisible();
+    await copyBtn.click();
+    await expect(page.getByText("🔑 Edit Password")).toHaveCount(0);
+  });
 });
 
 test("shows an empty password list", async ({ page }) => {

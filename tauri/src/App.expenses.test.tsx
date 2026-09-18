@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+import { join } from "path";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { invoke } from "./test/mocks/tauri";
 import { food } from "./test/fixtures";
@@ -9,6 +11,17 @@ function categoryPanel() {
 
 function vendorPanel() {
   return screen.getByText("Vendors/Customers").closest(".panel-col") as HTMLElement;
+}
+
+function expectCustomDatePicker(modal: HTMLElement) {
+  const group = within(modal).getByText("Date:").closest(".form-group") as HTMLElement;
+  const dateInputs = group.querySelectorAll<HTMLInputElement>('input[type="date"]');
+  expect(dateInputs).toHaveLength(1);
+  expect(dateInputs[0].closest(".date-input-container")).not.toBeNull();
+  expect(within(group).getAllByTitle("Open calendar")).toHaveLength(1);
+  expect(within(group).getAllByRole("button", { name: "Today" })).toHaveLength(1);
+  expect(within(group).getAllByRole("button")).toHaveLength(2);
+  return dateInputs[0];
 }
 
 describe("Expenses tab", () => {
@@ -63,6 +76,7 @@ describe("Expenses tab", () => {
       .getAllByRole("textbox")
       .find((el) => el.closest(".form-group")?.textContent?.includes("Memo")) as HTMLElement;
     await user.type(memoInput, "ride");
+    expectCustomDatePicker(modal);
     await user.click(within(modal).getByRole("button", { name: "Today" }));
     fireEvent.click(within(modal).getByTitle("Open calendar"));
     expect(HTMLInputElement.prototype.showPicker).toHaveBeenCalled();
@@ -73,6 +87,7 @@ describe("Expenses tab", () => {
     await user.click(screen.getByText("📊 All Expenses"));
     await user.click(await within(activePanel()).findByRole("cell", { name: "Costco" }));
     const edit = screen.getByText("💰 Edit Expense").closest(".modal-content") as HTMLElement;
+    expectCustomDatePicker(edit);
     const amount = within(edit).getAllByRole("textbox")[0];
     await user.clear(amount);
     await user.click(within(edit).getByRole("button", { name: /Update/ }));
@@ -89,6 +104,30 @@ describe("Expenses tab", () => {
     (window.confirm as jest.Mock).mockReturnValueOnce(true);
     await user.click(within(deleteModal).getByRole("button", { name: /Delete/ }));
     expect(await screen.findByText("🗑️ Expense deleted")).toBeInTheDocument();
+  });
+
+  it("hides the native date picker indicator so only the custom calendar button is used", () => {
+    const css = readFileSync(join(__dirname, "App.css"), "utf8");
+    expect(css).toMatch(
+      /\.date-input-container input\[type="date"\]::-webkit-calendar-picker-indicator\s*\{[^}]*display:\s*none/,
+    );
+  });
+
+  it("uses a single custom date picker on add and edit expense forms", async () => {
+    const { user } = await renderApp();
+    await user.click(screen.getByRole("button", { name: /Add Expense/ }));
+    const addModal = screen.getByText("💰 Add Expense").closest(".modal-content") as HTMLElement;
+    expectCustomDatePicker(addModal);
+    fireEvent.click(within(addModal).getByTitle("Open calendar"));
+    expect(HTMLInputElement.prototype.showPicker).toHaveBeenCalledTimes(1);
+    await user.click(within(addModal).getByRole("button", { name: /Cancel/ }));
+
+    await user.click(await within(activePanel()).findByRole("cell", { name: "Costco" }));
+    const editModal = screen.getByText("💰 Edit Expense").closest(".modal-content") as HTMLElement;
+    const dateInput = expectCustomDatePicker(editModal);
+    expect(dateInput).toHaveValue("2026-01-15");
+    fireEvent.click(within(editModal).getByTitle("Open calendar"));
+    expect(HTMLInputElement.prototype.showPicker).toHaveBeenCalledTimes(2);
   });
 
   it("manages categories including existing-name selection", async () => {
