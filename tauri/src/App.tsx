@@ -16,6 +16,7 @@ import type {
   SubscriptionPeriod,
   SubscriptionRecord,
 } from "./types";
+import SwimTab from "./swim/SwimTab";
 import {
   MONTHS,
   CALENDAR_DAY_PREVIEW_COUNT,
@@ -62,7 +63,7 @@ function StatusSwitch({
 
 function App() {
   // --- Global App State ---
-  const [activeTab, setActiveTab] = useState<"passwords" | "subscriptions" | "expenses">("expenses");
+  const [activeTab, setActiveTab] = useState<"passwords" | "subscriptions" | "expenses" | "swim">("expenses");
   const [uids, setUids] = useState<string[]>([]);
   const [userUid, setUserUid] = useState<string>("");
   const [isOnline, setIsOnline] = useState<boolean>(false);
@@ -1116,6 +1117,12 @@ function App() {
         >
           💰 Expenses
         </button>
+        <button
+          className={`tab-btn ${activeTab === "swim" ? "active" : ""}`}
+          onClick={() => setActiveTab("swim")}
+        >
+          🏊 Swim
+        </button>
       </div>
 
       {/* Main Tab Panels */}
@@ -1669,6 +1676,12 @@ function App() {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className={`tab-panel ${activeTab === "swim" ? "active" : ""}`}>
+          {activeTab === "swim" && userUid ? (
+            <SwimTab uid={userUid} onStatus={setStatusMsg} />
+          ) : null}
         </div>
       </div>
 

@@ -100,7 +100,73 @@ pub fn init_db(db_path: &str) -> Result<Connection> {
     conn.execute("CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)", [])?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses(userId, date)", [])?;
 
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS swim_workouts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            remoteId TEXT,
+            name TEXT NOT NULL,
+            note TEXT NOT NULL DEFAULT '',
+            userId TEXT NOT NULL,
+            importKey TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        [],
+    )?;
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS swim_workout_sets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            remoteId TEXT,
+            workoutId INTEGER NOT NULL,
+            remoteWorkoutId TEXT,
+            distance TEXT,
+            description TEXT,
+            splitTotal TEXT,
+            equipment TEXT,
+            fins TEXT,
+            sortOrder INTEGER NOT NULL DEFAULT 0,
+            userId TEXT NOT NULL,
+            FOREIGN KEY (workoutId) REFERENCES swim_workouts (id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS swim_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            remoteId TEXT,
+            date TEXT NOT NULL,
+            meters TEXT,
+            miles TEXT,
+            stroke TEXT,
+            note TEXT,
+            extra TEXT,
+            workoutId INTEGER,
+            remoteWorkoutId TEXT,
+            userId TEXT NOT NULL,
+            importKey TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (workoutId) REFERENCES swim_workouts (id) ON DELETE SET NULL
+        )",
+        [],
+    )?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_swim_sessions_user_date ON swim_sessions(userId, date)",
+        [],
+    )?;
+    ensure_column(&conn, "swim_workouts", "note", "TEXT NOT NULL DEFAULT ''")?;
+
     Ok(conn)
+}
+
+fn ensure_column(conn: &Connection, table: &str, column: &str, decl: &str) -> Result<()> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let exists = stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .filter_map(|name| name.ok())
+        .any(|name| name == column);
+    if !exists {
+        conn.execute(&format!("ALTER TABLE {table} ADD COLUMN {column} {decl}"), [])?;
+    }
+    Ok(())
 }
 
 // ── Vendor DB Actions ──────────────────────────────────────────────────
@@ -450,5 +516,323 @@ pub fn upsert_expense(
 
 pub fn delete_expense(conn: &Connection, local_id: i32) -> Result<()> {
     conn.execute("DELETE FROM expenses WHERE localId = ?", params![local_id])?;
+    Ok(())
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SwimWorkout {
+    pub id: i32,
+    pub remote_id: Option<String>,
+    pub name: String,
+    pub note: String,
+    pub set_count: i64,
+    pub user_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SwimWorkoutSet {
+    pub id: i32,
+    pub remote_id: Option<String>,
+    pub workout_id: i32,
+    pub distance: String,
+    pub description: String,
+    pub split_total: String,
+    pub equipment: String,
+    pub fins: String,
+    pub sort_order: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SwimSession {
+    pub id: i32,
+    pub remote_id: Option<String>,
+    pub date: String,
+    pub meters: String,
+    pub miles: String,
+    pub stroke: String,
+    pub note: String,
+    pub extra: String,
+    pub workout_id: Option<i32>,
+    pub workout_name: Option<String>,
+    pub user_id: String,
+}
+
+fn map_swim_workout(row: &rusqlite::Row<'_>) -> rusqlite::Result<SwimWorkout> {
+    Ok(SwimWorkout {
+        id: row.get(0)?,
+        remote_id: row.get(1)?,
+        name: row.get(2)?,
+        note: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
+        user_id: row.get(4)?,
+        set_count: row.get(5)?,
+    })
+}
+
+const SWIM_WORKOUT_SELECT: &str = "SELECT w.id, w.remoteId, w.name, COALESCE(w.note, ''), w.userId,
+                (SELECT COUNT(*) FROM swim_workout_sets s WHERE s.workoutId = w.id)
+         FROM swim_workouts w";
+
+pub fn list_swim_workouts(conn: &Connection, user_id: &str) -> Result<Vec<SwimWorkout>> {
+    let mut stmt = conn.prepare(&format!(
+        "{SWIM_WORKOUT_SELECT}
+         WHERE w.userId = ?
+         ORDER BY w.name"
+    ))?;
+    let rows = stmt.query_map([user_id], map_swim_workout)?;
+    rows.collect()
+}
+
+pub fn get_swim_workout(conn: &Connection, id: i32) -> Result<SwimWorkout> {
+    conn.query_row(
+        &format!("{SWIM_WORKOUT_SELECT} WHERE w.id = ?"),
+        [id],
+        map_swim_workout,
+    )
+}
+
+pub fn get_swim_workout_by_remote(conn: &Connection, remote_id: &str) -> Result<Option<SwimWorkout>> {
+    let mut stmt = conn.prepare(&format!("{SWIM_WORKOUT_SELECT} WHERE w.remoteId = ?"))?;
+    let mut rows = stmt.query_map([remote_id], map_swim_workout)?;
+    Ok(rows.next().transpose()?)
+}
+
+pub fn get_swim_workout_by_import_key(
+    conn: &Connection,
+    user_id: &str,
+    import_key: &str,
+) -> Result<Option<i32>> {
+    let mut stmt = conn.prepare("SELECT id FROM swim_workouts WHERE userId = ? AND importKey = ?")?;
+    let mut rows = stmt.query_map(params![user_id, import_key], |row| row.get(0))?;
+    Ok(rows.next().transpose()?)
+}
+
+pub fn upsert_swim_workout(
+    conn: &Connection,
+    remote_id: Option<&str>,
+    name: &str,
+    user_id: &str,
+    import_key: Option<&str>,
+    note: Option<&str>,
+) -> Result<i32> {
+    if let Some(rid) = remote_id {
+        let existing: Result<i32> =
+            conn.query_row("SELECT id FROM swim_workouts WHERE remoteId = ?", [rid], |r| r.get(0));
+        if let Ok(id) = existing {
+            conn.execute(
+                "UPDATE swim_workouts
+                 SET name = ?, importKey = COALESCE(?, importKey), note = COALESCE(?, note)
+                 WHERE id = ?",
+                params![name, import_key, note, id],
+            )?;
+            return Ok(id);
+        }
+    }
+    conn.execute(
+        "INSERT INTO swim_workouts (remoteId, name, userId, importKey, note) VALUES (?, ?, ?, ?, ?)",
+        params![remote_id, name, user_id, import_key, note.unwrap_or("")],
+    )?;
+    Ok(conn.last_insert_rowid() as i32)
+}
+
+pub fn delete_swim_workout(conn: &Connection, id: i32, user_id: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE swim_sessions SET workoutId = NULL, remoteWorkoutId = NULL WHERE workoutId = ? AND userId = ?",
+        params![id, user_id],
+    )?;
+    conn.execute(
+        "DELETE FROM swim_workout_sets WHERE workoutId = ?",
+        [id],
+    )?;
+    conn.execute(
+        "DELETE FROM swim_workouts WHERE id = ? AND userId = ?",
+        params![id, user_id],
+    )?;
+    Ok(())
+}
+
+pub fn list_swim_sets(conn: &Connection, workout_id: i32) -> Result<Vec<SwimWorkoutSet>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, remoteId, workoutId, distance, description, splitTotal, equipment, fins, sortOrder
+         FROM swim_workout_sets WHERE workoutId = ? ORDER BY sortOrder, id",
+    )?;
+    let rows = stmt.query_map([workout_id], |row| {
+        Ok(SwimWorkoutSet {
+            id: row.get(0)?,
+            remote_id: row.get(1)?,
+            workout_id: row.get(2)?,
+            distance: row.get(3)?,
+            description: row.get(4)?,
+            split_total: row.get(5)?,
+            equipment: row.get(6)?,
+            fins: row.get(7)?,
+            sort_order: row.get(8)?,
+        })
+    })?;
+    rows.collect()
+}
+
+pub fn replace_swim_sets(
+    conn: &Connection,
+    workout_id: i32,
+    remote_workout_id: Option<&str>,
+    user_id: &str,
+    sets: &[SwimWorkoutSet],
+) -> Result<()> {
+    conn.execute("DELETE FROM swim_workout_sets WHERE workoutId = ?", [workout_id])?;
+    for (index, set) in sets.iter().enumerate() {
+        conn.execute(
+            "INSERT INTO swim_workout_sets (
+                remoteId, workoutId, remoteWorkoutId, distance, description,
+                splitTotal, equipment, fins, sortOrder, userId
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            params![
+                set.remote_id,
+                workout_id,
+                remote_workout_id,
+                set.distance,
+                set.description,
+                set.split_total,
+                set.equipment,
+                set.fins,
+                set.sort_order.max(index as i32),
+                user_id
+            ],
+        )?;
+    }
+    Ok(())
+}
+
+pub fn list_swim_sessions(conn: &Connection, user_id: &str) -> Result<Vec<SwimSession>> {
+    let mut stmt = conn.prepare(
+        "SELECT s.id, s.remoteId, s.date, s.meters, s.miles, s.stroke, s.note, s.extra,
+                s.workoutId, w.name, s.userId
+         FROM swim_sessions s
+         LEFT JOIN swim_workouts w ON w.id = s.workoutId
+         WHERE s.userId = ?
+         ORDER BY s.date DESC, s.id DESC",
+    )?;
+    let rows = stmt.query_map([user_id], |row| {
+        Ok(SwimSession {
+            id: row.get(0)?,
+            remote_id: row.get(1)?,
+            date: row.get(2)?,
+            meters: row.get(3)?,
+            miles: row.get(4)?,
+            stroke: row.get(5)?,
+            note: row.get(6)?,
+            extra: row.get(7)?,
+            workout_id: row.get(8)?,
+            workout_name: row.get(9)?,
+            user_id: row.get(10)?,
+        })
+    })?;
+    rows.collect()
+}
+
+pub fn get_swim_session(conn: &Connection, id: i32) -> Result<SwimSession> {
+    conn.query_row(
+        "SELECT s.id, s.remoteId, s.date, s.meters, s.miles, s.stroke, s.note, s.extra,
+                s.workoutId, w.name, s.userId
+         FROM swim_sessions s
+         LEFT JOIN swim_workouts w ON w.id = s.workoutId
+         WHERE s.id = ?",
+        [id],
+        |row| {
+            Ok(SwimSession {
+                id: row.get(0)?,
+                remote_id: row.get(1)?,
+                date: row.get(2)?,
+                meters: row.get(3)?,
+                miles: row.get(4)?,
+                stroke: row.get(5)?,
+                note: row.get(6)?,
+                extra: row.get(7)?,
+                workout_id: row.get(8)?,
+                workout_name: row.get(9)?,
+                user_id: row.get(10)?,
+            })
+        },
+    )
+}
+
+pub fn get_swim_session_by_import_key(
+    conn: &Connection,
+    user_id: &str,
+    import_key: &str,
+) -> Result<Option<i32>> {
+    let mut stmt = conn.prepare("SELECT id FROM swim_sessions WHERE userId = ? AND importKey = ?")?;
+    let mut rows = stmt.query_map(params![user_id, import_key], |row| row.get(0))?;
+    Ok(rows.next().transpose()?)
+}
+
+pub fn upsert_swim_session(
+    conn: &Connection,
+    remote_id: Option<&str>,
+    date: &str,
+    meters: &str,
+    miles: &str,
+    stroke: &str,
+    note: &str,
+    extra: &str,
+    workout_id: Option<i32>,
+    remote_workout_id: Option<&str>,
+    user_id: &str,
+    import_key: Option<&str>,
+) -> Result<i32> {
+    if let Some(rid) = remote_id {
+        let existing: Result<i32> =
+            conn.query_row("SELECT id FROM swim_sessions WHERE remoteId = ?", [rid], |r| r.get(0));
+        if let Ok(id) = existing {
+            conn.execute(
+                "UPDATE swim_sessions
+                 SET date=?, meters=?, miles=?, stroke=?, note=?, extra=?,
+                     workoutId=?, remoteWorkoutId=?, importKey=COALESCE(?, importKey)
+                 WHERE id=?",
+                params![
+                    date,
+                    meters,
+                    miles,
+                    stroke,
+                    note,
+                    extra,
+                    workout_id,
+                    remote_workout_id,
+                    import_key,
+                    id
+                ],
+            )?;
+            return Ok(id);
+        }
+    }
+    conn.execute(
+        "INSERT INTO swim_sessions (
+            remoteId, date, meters, miles, stroke, note, extra,
+            workoutId, remoteWorkoutId, userId, importKey
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        params![
+            remote_id,
+            date,
+            meters,
+            miles,
+            stroke,
+            note,
+            extra,
+            workout_id,
+            remote_workout_id,
+            user_id,
+            import_key
+        ],
+    )?;
+    Ok(conn.last_insert_rowid() as i32)
+}
+
+pub fn delete_swim_session(conn: &Connection, id: i32, user_id: &str) -> Result<()> {
+    conn.execute(
+        "DELETE FROM swim_sessions WHERE id = ? AND userId = ?",
+        params![id, user_id],
+    )?;
     Ok(())
 }

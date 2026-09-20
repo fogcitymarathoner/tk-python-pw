@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "setup": "tsx scripts/setup.ts",
-    
+    "test:all": "tsx scripts/test-all.ts",
     "tauri:build": "tsx scripts/tauri-build.ts"
   },
   "dependencies": {},

@@ -2,18 +2,54 @@ name: Tests
 
 on:
   push:
+  pull_request:
 
 jobs:
+  discover:
+    name: Discover test apps
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.list.outputs.apps }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          skip = {"node_modules", "dist", "coverage", ".git", "target"}
+          apps = []
+          for pkg in Path(".").rglob("package.json"):
+              if skip.intersection(pkg.parts):
+                  continue
+              try:
+                  data = json.loads(pkg.read_text(encoding="utf-8"))
+              except json.JSONDecodeError:
+                  continue
+              scripts = data.get("scripts") or {}
+              if not scripts.get("test"):
+                  continue
+              rel = pkg.parent.as_posix()
+              if rel == ".":
+                  continue
+              apps.append(rel)
+
+          apps = sorted(set(apps))
+          print("Discovered test apps:", apps)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"apps={json.dumps(apps)}\n")
+          PY
+
   test:
     name: ${{ matrix.app }}
+    needs: discover
+    if: needs.discover.outputs.apps != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        app:
-          - tauri
-          - tauri-personal-assistant
-          - tauri-email-filters
+        app: ${{ fromJson(needs.discover.outputs.apps) }}
     defaults:
       run:
         working-directory: ${{ matrix.app }}
@@ -27,16 +63,28 @@ jobs:
           cache-dependency-path: ${{ matrix.app }}/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Install Playwright Chromium
+        if: hashFiles(format('{0}/playwright.config.ts', matrix.app)) != '' || hashFiles(format('{0}/playwright.config.js', matrix.app)) != ''
         run: npx playwright install --with-deps chromium
 
-      - name: Jest
+      - name: Unit tests
         run: npm test
 
-      - name: Jest with coverage
-        run: npm run test:coverage
+      - name: Coverage
+        run: |
+          if npm run | grep -q "test:coverage"; then
+            npm run test:coverage
+          fi
 
-      - name: Playwright
-        run: npm run test:e2e
+      - name: End-to-end tests
+        run: |
+          if npm run | grep -q "test:e2e"; then
+            npm run test:e2e
+          fi

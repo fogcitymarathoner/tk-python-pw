@@ -30,6 +30,9 @@ export type TauriSeed = {
     userId: string;
   }>;
   fail?: Record<string, string>;
+  swimSessions?: Array<Record<string, unknown>>;
+  swimWorkouts?: Array<Record<string, unknown>>;
+  swimSets?: Array<Record<string, unknown>>;
 };
 
 export const defaultE2eSeed: TauriSeed = {
@@ -107,6 +110,9 @@ export function installTauriMock() {
     categories: [...(seed.categories ?? [])],
     vendors: [...(seed.vendors ?? [])],
     expenses: [...(seed.expenses ?? [])],
+    swimSessions: [...(seed.swimSessions ?? [])] as Array<Record<string, unknown>>,
+    swimWorkouts: [...(seed.swimWorkouts ?? [])] as Array<Record<string, unknown>>,
+    swimSets: [...(seed.swimSets ?? [])] as Array<Record<string, unknown>>,
     fail: { ...(seed.fail ?? {}) },
     nextId: 200,
   };
@@ -259,6 +265,71 @@ export function installTauriMock() {
         case "delete_expense":
           state.expenses = state.expenses.filter((e) => e.localId !== args.localId);
           return;
+        case "list_swim_sessions":
+          return [...state.swimSessions];
+        case "list_swim_workouts":
+          return [...state.swimWorkouts];
+        case "list_swim_sets":
+          return state.swimSets.filter((set) => set.workoutId === args.workoutId);
+        case "save_swim_session": {
+          const saved = {
+            id: Number(args.id ?? state.nextId++),
+            remoteId: args.remoteId ?? null,
+            date: String(args.date ?? ""),
+            meters: String(args.meters ?? ""),
+            miles: String(args.miles ?? ""),
+            stroke: String(args.stroke ?? ""),
+            note: String(args.note ?? ""),
+            extra: String(args.extra ?? ""),
+            workoutId: args.workoutId == null ? null : Number(args.workoutId),
+            workoutName:
+              args.workoutId == null
+                ? null
+                : (state.swimWorkouts.find((workout) => workout.id === Number(args.workoutId))?.name ?? null),
+            userId: String(args.uid ?? ""),
+          };
+          state.swimSessions = [saved, ...state.swimSessions.filter((session) => session.id !== saved.id)];
+          return saved;
+        }
+        case "save_swim_workout": {
+          const id = Number(args.id ?? state.nextId++);
+          const sets = Array.isArray(args.sets) ? args.sets : [];
+          const saved = {
+            id,
+            remoteId: args.remoteId ?? null,
+            name: String(args.name ?? ""),
+            note: String(args.note ?? ""),
+            setCount: sets.length,
+            userId: String(args.uid ?? ""),
+          };
+          state.swimWorkouts = args.id
+            ? state.swimWorkouts.map((workout) => (workout.id === id ? saved : workout))
+            : [...state.swimWorkouts, saved];
+          state.swimSets = [
+            ...state.swimSets.filter((set) => set.workoutId !== id),
+            ...sets.map((set, index) => ({
+              id: state.nextId++,
+              remoteId: null,
+              workoutId: id,
+              distance: String(set.distance ?? ""),
+              description: String(set.description ?? ""),
+              splitTotal: String(set.splitTotal ?? ""),
+              equipment: String(set.equipment ?? ""),
+              fins: String(set.fins ?? ""),
+              sortOrder: index,
+            })),
+          ];
+          return saved;
+        }
+        case "delete_swim_session":
+          state.swimSessions = state.swimSessions.filter((session) => session.id !== args.id);
+          return;
+        case "delete_swim_workout":
+          state.swimWorkouts = state.swimWorkouts.filter((workout) => workout.id !== args.id);
+          state.swimSets = state.swimSets.filter((set) => set.workoutId !== args.id);
+          return;
+        case "import_swim_from_sheet":
+          return "Imported 0 workouts and 0 sessions from the sheet snapshot.";
         default:
           throw new Error(`Unknown command: ${cmd}`);
       }

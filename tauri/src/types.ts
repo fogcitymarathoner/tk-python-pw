@@ -46,3 +46,53 @@ export interface SubscriptionRecord {
 
 export type SubStatusFilter = "active" | "inactive" | "all";
 export type ExpenseSortCol = "d" | "v" | "a" | "m";
+
+export type SwimWorkout = {
+  id: number;
+  remoteId: string | null;
+  name: string;
+  note: string;
+  setCount: number;
+  userId: string;
+};
+
+export type SwimWorkoutSet = {
+  id: number;
+  remoteId: string | null;
+  workoutId: number;
+  distance: string;
+  description: string;
+  splitTotal: string;
+  equipment: string;
+  fins: string;
+  sortOrder: number;
+};
+
+export type SwimSession = {
+  id: number;
+  remoteId: string | null;
+  date: string;
+  meters: string;
+  miles: string;
+  stroke: string;
+  note: string;
+  extra: string;
+  workoutId: number | null;
+  workoutName: string | null;
+  userId: string;
+};
+
+export type SwimEditorMode = "line" | "workout";
+
+export type SwimDraft = {
+  id: number | null;
+  remoteId: string | null;
+  date: string;
+  meters: string;
+  miles: string;
+  stroke: string;
+  note: string;
+  extra: string;
+  workoutId: number | null;
+  mode: SwimEditorMode;
+};

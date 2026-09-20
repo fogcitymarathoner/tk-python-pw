@@ -24,6 +24,13 @@ test("loads the expenses workspace and switches tabs", async ({ page }) => {
 
   await page.getByRole("button", { name: /Expenses/ }).click();
   await expect(page.getByText("📁 Food")).toBeVisible();
+
+  await page.getByRole("button", { name: /Swim/ }).click();
+  await expect(page.getByRole("button", { name: "Add session" })).toBeVisible();
+  await expect(page.getByText("No swim sessions yet.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Workouts" }).click();
+  await expect(page.getByRole("button", { name: /New workout/ })).toHaveClass(/btn-primary/);
 });
 
 test("shows offline mode when firebase is unavailable", async ({ page }) => {

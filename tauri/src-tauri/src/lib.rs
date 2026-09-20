@@ -1,5 +1,6 @@
 mod db;
 mod firebase;
+mod swim;
 
 use db::{Category, Vendor, ExpenseWithCategory};
 use firebase::FirebaseClient;
@@ -10,8 +11,8 @@ use tauri::{image::Image, menu::{Menu, MenuItem}, Manager, State};
 use std::path::Path;
 use rusqlite::params;
 
-struct DbState(Mutex<rusqlite::Connection>);
-struct FirebaseState(FirebaseClient);
+pub(crate) struct DbState(pub Mutex<rusqlite::Connection>);
+pub(crate) struct FirebaseState(pub FirebaseClient);
 
 // Helper to parse simple key=value from .env files
 fn parse_env_file() -> (String, String, String) {
@@ -636,7 +637,8 @@ async fn sync_all(uid: String, db: State<'_, DbState>, firebase: State<'_, Fireb
     let vendors_val = firebase.0.get(&format!("users/{}/vendors", uid)).await.map_err(|e| format!("Failed to fetch vendors: {}", e))?;
     let exps_val = firebase.0.get(&format!("users/{}/expenses", uid)).await.map_err(|e| format!("Failed to fetch expenses: {}", e))?;
 
-    // 2. Lock and Sync locally
+    // 2. Lock and Sync locally, then drop the guard before any further awaits.
+    {
     let conn = db.0.lock().unwrap();
 
     // Sync Categories
@@ -754,6 +756,9 @@ async fn sync_all(uid: String, db: State<'_, DbState>, firebase: State<'_, Fireb
         }
     }
 
+    }
+    swim::sync_swim(&uid, &db, &firebase.0).await?;
+
     Ok("✅ Sync Complete".to_string())
 }
 
@@ -852,7 +857,15 @@ pub fn run() {
             add_expense,
             update_expense,
             delete_expense,
-            sync_all
+            sync_all,
+            swim::list_swim_sessions,
+            swim::list_swim_workouts,
+            swim::list_swim_sets,
+            swim::save_swim_session,
+            swim::delete_swim_session,
+            swim::save_swim_workout,
+            swim::delete_swim_workout,
+            swim::import_swim_from_sheet
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
