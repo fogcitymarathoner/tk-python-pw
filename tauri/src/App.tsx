@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   useTable,
@@ -32,6 +32,14 @@ import {
   mostUsedCategoryForVendor,
   clampPaneWidth,
 } from "./lib/appLogic";
+import {
+  PW_COLUMN_DEFAULTS,
+  PW_COLUMN_KEYS,
+  PW_COLUMN_MAX,
+  PW_COLUMN_MIN,
+  PW_COLUMN_STORAGE_KEY,
+  useColumnWidths,
+} from "./lib/columnWidths";
 
 function StatusSwitch({
   checked,
@@ -58,6 +66,27 @@ function StatusSwitch({
         {checked ? "Active" : "Inactive"}
       </span>
     </button>
+  );
+}
+
+function PwColumnSash({
+  label,
+  active,
+  onMouseDown,
+}: {
+  label: string;
+  active: boolean;
+  onMouseDown: (event: ReactMouseEvent) => void;
+}) {
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Resize ${label} column`}
+      className={`col-resizer ${active ? "is-resizing" : ""}`}
+      onMouseDown={onMouseDown}
+      onClick={(event) => event.stopPropagation()}
+    />
   );
 }
 
@@ -989,6 +1018,13 @@ function App() {
 
   // --- Filtering computations ---
   const filteredPasswords = filterAndSortPasswords(passwordsMap, pwSearch, pwSortAscending);
+  const pwColumns = useColumnWidths(
+    PW_COLUMN_STORAGE_KEY,
+    PW_COLUMN_DEFAULTS,
+    PW_COLUMN_MIN,
+    PW_COLUMN_MAX,
+  );
+  const pwTableWidth = PW_COLUMN_KEYS.reduce((sum, key) => sum + pwColumns.widths[key], 0);
 
   const filteredSubscriptions = filterAndSortSubscriptions(
     subscriptionsMap,
@@ -1143,13 +1179,29 @@ function App() {
           </div>
 
           <div className="table-container">
-            <table>
+            <table className="pw-table" style={{ width: pwTableWidth }}>
+              <colgroup>
+                {PW_COLUMN_KEYS.map((key) => (
+                  <col key={key} style={{ width: pwColumns.widths[key] }} />
+                ))}
+              </colgroup>
               <thead>
                 <tr>
-                  <th className="pw-copy-col" aria-label="Copy password" />
                   <th
+                    className="pw-copy-col resizable-col"
+                    aria-label="Copy password"
+                    style={{ width: pwColumns.widths.copy }}
+                  >
+                    <PwColumnSash
+                      label="copy"
+                      active={pwColumns.resizing === "copy"}
+                      onMouseDown={(event) => pwColumns.onResizeStart("copy", event)}
+                    />
+                  </th>
+                  <th
+                    className="resizable-col"
                     onClick={() => setPwSortAscending(!pwSortAscending)}
-                    style={{ cursor: "pointer", userSelect: "none" }}
+                    style={{ width: pwColumns.widths.vendor, cursor: "pointer", userSelect: "none" }}
                     title="Click to sort by vendor"
                   >
                     <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
@@ -1171,10 +1223,36 @@ function App() {
                         {pwSortAscending ? "▲" : "▼"}
                       </button>
                     </div>
+                    <PwColumnSash
+                      label="vendor"
+                      active={pwColumns.resizing === "vendor"}
+                      onMouseDown={(event) => pwColumns.onResizeStart("vendor", event)}
+                    />
                   </th>
-                  <th>Account</th>
-                  <th>Password</th>
-                  <th>Memo</th>
+                  <th className="resizable-col" style={{ width: pwColumns.widths.account }}>
+                    Account
+                    <PwColumnSash
+                      label="account"
+                      active={pwColumns.resizing === "account"}
+                      onMouseDown={(event) => pwColumns.onResizeStart("account", event)}
+                    />
+                  </th>
+                  <th className="resizable-col" style={{ width: pwColumns.widths.password }}>
+                    Password
+                    <PwColumnSash
+                      label="password"
+                      active={pwColumns.resizing === "password"}
+                      onMouseDown={(event) => pwColumns.onResizeStart("password", event)}
+                    />
+                  </th>
+                  <th className="resizable-col" style={{ width: pwColumns.widths.memo }}>
+                    Memo
+                    <PwColumnSash
+                      label="memo"
+                      active={pwColumns.resizing === "memo"}
+                      onMouseDown={(event) => pwColumns.onResizeStart("memo", event)}
+                    />
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -1185,22 +1263,34 @@ function App() {
                     onClick={() => handlePasswordSelect(id, r)}
                     style={{ cursor: "pointer" }}
                   >
-                    <td className="pw-copy-col">
-                      <button
-                        type="button"
-                        className="pw-copy-btn"
-                        aria-label={`Copy ${r.vendor || r.account || "entry"} password`}
-                        title="Copy password to clipboard"
-                        disabled={!r.pw}
-                        onClick={(event) => handleCopyListPassword(event, id, r.pw)}
-                      >
-                        {copiedPwId === id ? "✅" : "📋"}
-                      </button>
+                    <td className="pw-copy-col" style={{ width: pwColumns.widths.copy }}>
+                      <div className="pw-copy-actions">
+                        <button
+                          type="button"
+                          className="pw-copy-btn"
+                          aria-label={`Copy ${r.vendor || r.account || "entry"} password`}
+                          title="Copy password to clipboard"
+                          disabled={!r.pw}
+                          onClick={(event) => handleCopyListPassword(event, id, r.pw)}
+                        >
+                          {copiedPwId === id ? "✅" : "📋"}
+                        </button>
+                        <button
+                          type="button"
+                          className="pw-copy-btn"
+                          aria-label={`Copy password for ${r.vendor || r.account || "entry"}`}
+                          title="Copy password to clipboard"
+                          disabled={!r.pw}
+                          onClick={(event) => handleCopyListPassword(event, id, r.pw)}
+                        >
+                          {copiedPwId === id ? "Copied" : "Copy"}
+                        </button>
+                      </div>
                     </td>
-                    <td>{r.vendor}</td>
-                    <td>{r.account}</td>
-                    <td>{r.pw}</td>
-                    <td>{r.memo || ""}</td>
+                    <td style={{ width: pwColumns.widths.vendor }}>{r.vendor}</td>
+                    <td style={{ width: pwColumns.widths.account }}>{r.account}</td>
+                    <td style={{ width: pwColumns.widths.password }}>{r.pw}</td>
+                    <td style={{ width: pwColumns.widths.memo }}>{r.memo || ""}</td>
                   </tr>
                 ))}
                 {filteredPasswords.length === 0 && (

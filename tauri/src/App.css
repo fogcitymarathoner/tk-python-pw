@@ -468,22 +468,35 @@ td {
   text-overflow: ellipsis;
 }
 
+table.pw-table {
+  table-layout: fixed;
+}
+
+th.resizable-col {
+  position: relative;
+}
+
 th.pw-copy-col,
 td.pw-copy-col {
-  width: 44px;
-  padding: 4px;
-  text-align: center;
-  overflow: visible;
+  padding: 4px 8px;
+  text-align: left;
+  white-space: nowrap;
 }
 
 td.pw-copy-col {
   cursor: default;
 }
 
+.pw-copy-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .pw-copy-btn {
   padding: 2px 6px;
   line-height: 1.2;
-  min-width: 0;
+  flex-shrink: 0;
 }
 
 tr {
