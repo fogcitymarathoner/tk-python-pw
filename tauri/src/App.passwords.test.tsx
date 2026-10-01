@@ -21,6 +21,15 @@ describe("Passwords tab", () => {
     return ctx;
   }
 
+  function expectOneClipboardButton(vendor: string) {
+    const row = within(activePanel()).getByRole("row", { name: new RegExp(vendor) });
+    const buttons = within(row).getAllByRole("button");
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toHaveAccessibleName(`Copy ${vendor} password`);
+    expect(within(row).queryByRole("button", { name: "Copy", exact: true })).not.toBeInTheDocument();
+    return buttons[0];
+  }
+
   it("lists, searches, clears, and sorts passwords", async () => {
     const { user } = await openPasswords();
     const panel = () => within(activePanel());
@@ -157,21 +166,12 @@ describe("Passwords tab", () => {
 
   it("copies a password from the list without opening the editor", async () => {
     const { user } = await openPasswords();
-    await user.click(screen.getByRole("button", { name: "Copy GitHub password" }));
+    expectOneClipboardButton("Adobe");
+    const github = expectOneClipboardButton("GitHub");
+    await user.click(github);
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith("secret1"));
     expect(await screen.findByText("✅ Password copied to clipboard!")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Copy GitHub password" })).toHaveTextContent("✅");
-    expect(screen.queryByText("🔑 Edit Password")).not.toBeInTheDocument();
-  });
-
-  it("copies a password from the Copy button next to the clipboard icon", async () => {
-    const { user } = await openPasswords();
-    const copyBtn = screen.getByRole("button", { name: "Copy password for GitHub" });
-    expect(copyBtn).toHaveTextContent("Copy");
-    await user.click(copyBtn);
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith("secret1"));
-    expect(await screen.findByText("✅ Password copied to clipboard!")).toBeInTheDocument();
-    expect(copyBtn).toHaveTextContent("Copied");
+    expect(github).toHaveTextContent("✅");
     expect(screen.queryByText("🔑 Edit Password")).not.toBeInTheDocument();
   });
 
@@ -183,22 +183,19 @@ describe("Passwords tab", () => {
     expect(screen.queryByText("🔑 Edit Password")).not.toBeInTheDocument();
   });
 
-  it("copies each row from the button beside the clipboard icon", async () => {
+  it("copies each row from its clipboard button", async () => {
     const { user } = await openPasswords();
-    const icon = screen.getByRole("button", { name: "Copy Adobe password" });
-    const copy = screen.getByRole("button", { name: "Copy password for Adobe" });
-    expect(icon.closest("td")).toBe(copy.closest("td"));
-
-    await user.click(copy);
+    const adobe = expectOneClipboardButton("Adobe");
+    const github = expectOneClipboardButton("GitHub");
+    await user.click(adobe);
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith("secret2"));
-    expect(copy).toHaveTextContent("Copied");
-    expect(icon).toHaveTextContent("✅");
-    expect(screen.getByRole("button", { name: "Copy password for GitHub" })).toHaveTextContent("Copy");
-    expect(screen.getByRole("button", { name: "Copy GitHub password" })).toHaveTextContent("📋");
+    expect(adobe).toHaveTextContent("✅");
+    expect(github).toHaveTextContent("📋");
+    expect(within(activePanel()).getAllByRole("button", { name: /password$/ })).toHaveLength(2);
     expect(screen.queryByText("🔑 Edit Password")).not.toBeInTheDocument();
   });
 
-  it("leaves blank password copy buttons disabled", async () => {
+  it("leaves a blank password clipboard button disabled", async () => {
     const { user } = await renderApp({
       passwords: {
         blank: { vendor: "Blank", account: "none", pw: "", memo: "" },
@@ -206,20 +203,9 @@ describe("Passwords tab", () => {
     });
     await openTab(user, /Passwords/);
 
-    expect(screen.getByRole("button", { name: "Copy Blank password" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Copy password for Blank" })).toBeDisabled();
+    const blank = expectOneClipboardButton("Blank");
+    expect(blank).toBeDisabled();
     expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
-  });
-
-  it("shows a clipboard error when the Copy button fails", async () => {
-    const { user } = await openPasswords();
-    (navigator.clipboard.writeText as jest.Mock).mockRejectedValueOnce(new Error("denied"));
-    const copy = screen.getByRole("button", { name: "Copy password for Adobe" });
-    await user.click(copy);
-    expect(await screen.findByText(/Failed to copy to clipboard/)).toBeInTheDocument();
-    expect(copy).toHaveTextContent("Copy");
-    expect(screen.getByRole("button", { name: "Copy Adobe password" })).toHaveTextContent("📋");
-    expect(screen.queryByText("🔑 Edit Password")).not.toBeInTheDocument();
   });
 
   function columnHeader(key: PwColumnKey) {
@@ -253,6 +239,15 @@ describe("Passwords tab", () => {
     expect(columnHeader("account")).toHaveStyle({ width: "210px" });
     expect(columnHeader("password")).toHaveStyle({ width: `${PW_COLUMN_MAX}px` });
     expect(columnHeader("memo")).toHaveStyle({ width: "400px" });
+  });
+
+  it("shrinks a saved copy column left over from the removed Copy button", async () => {
+    localStorage.setItem(
+      PW_COLUMN_STORAGE_KEY,
+      JSON.stringify({ ...PW_COLUMN_DEFAULTS, copy: 156 }),
+    );
+    await openPasswords();
+    expect(columnHeader("copy")).toHaveStyle({ width: `${PW_COLUMN_DEFAULTS.copy}px` });
   });
 
   it("resizes every password column from its sash without moving the others", async () => {

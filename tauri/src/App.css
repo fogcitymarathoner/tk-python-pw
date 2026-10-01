@@ -487,12 +487,6 @@ td.pw-copy-col {
   cursor: default;
 }
 
-.pw-copy-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .pw-copy-btn {
   padding: 2px 6px;
   line-height: 1.2;

@@ -6,7 +6,7 @@ export type PwColumnKey = (typeof PW_COLUMN_KEYS)[number];
 export const PW_COLUMN_STORAGE_KEY = "pw-column-widths";
 
 export const PW_COLUMN_DEFAULTS: Record<PwColumnKey, number> = {
-  copy: 156,
+  copy: 56,
   vendor: 180,
   account: 200,
   password: 180,
@@ -14,7 +14,7 @@ export const PW_COLUMN_DEFAULTS: Record<PwColumnKey, number> = {
 };
 
 export const PW_COLUMN_MIN: Record<PwColumnKey, number> = {
-  copy: 140,
+  copy: 48,
   vendor: 80,
   account: 80,
   password: 80,
@@ -22,6 +22,9 @@ export const PW_COLUMN_MIN: Record<PwColumnKey, number> = {
 };
 
 export const PW_COLUMN_MAX = 800;
+
+/** Width saved while the list had both a clipboard icon and a Copy button. */
+const LEGACY_COPY_COLUMN_WIDTH = 156;
 
 export function clampColumnWidth(width: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(width)));
@@ -57,7 +60,18 @@ export function useColumnWidths<T extends string>(
   min: Record<T, number>,
   max: number,
 ) {
-  const [widths, setWidths] = useState(() => readColumnWidths(storageKey, defaults, min, max));
+  const [widths, setWidths] = useState(() => {
+    const loaded = readColumnWidths(storageKey, defaults, min, max);
+    const copyKey = "copy" as T;
+    if (
+      storageKey === PW_COLUMN_STORAGE_KEY &&
+      loaded[copyKey] === LEGACY_COPY_COLUMN_WIDTH &&
+      defaults[copyKey] !== undefined
+    ) {
+      loaded[copyKey] = defaults[copyKey];
+    }
+    return loaded;
+  });
   const [resizing, setResizing] = useState<T | null>(null);
   const drag = useRef<{ key: T; startX: number; startWidth: number } | null>(null);
 

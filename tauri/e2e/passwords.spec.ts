@@ -64,7 +64,9 @@ test.describe("passwords", () => {
   });
 
   test("copies a password from the list without opening the editor", async ({ page }) => {
-    const copyBtn = page.getByRole("button", { name: "Copy GitHub password" });
+    const githubRow = page.getByRole("row", { name: /GitHub/ });
+    await expect(githubRow.getByRole("button")).toHaveCount(1);
+    const copyBtn = githubRow.getByRole("button", { name: "Copy GitHub password" });
     await expect(copyBtn).toBeVisible();
     await copyBtn.click();
     await expect(page.getByText("🔑 Edit Password")).toHaveCount(0);

@@ -1264,28 +1264,16 @@ function App() {
                     style={{ cursor: "pointer" }}
                   >
                     <td className="pw-copy-col" style={{ width: pwColumns.widths.copy }}>
-                      <div className="pw-copy-actions">
-                        <button
-                          type="button"
-                          className="pw-copy-btn"
-                          aria-label={`Copy ${r.vendor || r.account || "entry"} password`}
-                          title="Copy password to clipboard"
-                          disabled={!r.pw}
-                          onClick={(event) => handleCopyListPassword(event, id, r.pw)}
-                        >
-                          {copiedPwId === id ? "✅" : "📋"}
-                        </button>
-                        <button
-                          type="button"
-                          className="pw-copy-btn"
-                          aria-label={`Copy password for ${r.vendor || r.account || "entry"}`}
-                          title="Copy password to clipboard"
-                          disabled={!r.pw}
-                          onClick={(event) => handleCopyListPassword(event, id, r.pw)}
-                        >
-                          {copiedPwId === id ? "Copied" : "Copy"}
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        className="pw-copy-btn"
+                        aria-label={`Copy ${r.vendor || r.account || "entry"} password`}
+                        title="Copy password to clipboard"
+                        disabled={!r.pw}
+                        onClick={(event) => handleCopyListPassword(event, id, r.pw)}
+                      >
+                        {copiedPwId === id ? "✅" : "📋"}
+                      </button>
                     </td>
                     <td style={{ width: pwColumns.widths.vendor }}>{r.vendor}</td>
                     <td style={{ width: pwColumns.widths.account }}>{r.account}</td>
