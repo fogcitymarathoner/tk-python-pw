@@ -44,10 +44,18 @@ test("adds, duplicates, reorders, and deletes a filter", async ({ page }) => {
 
 test("saves changes, saves as, and copies a report", async ({ page }) => {
   await gotoApp(page);
+  await expect(page.getByRole("button", { name: /Save Changes/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /Save As/ })).toBeDisabled();
+
+  await page.getByPlaceholder("Sender address, domain, or query...").fill("team@corp.com");
+  await expect(page.getByRole("button", { name: /Save Changes/ })).toBeEnabled();
+  await expect(page.getByRole("button", { name: /Save As/ })).toBeEnabled();
+
   await page.getByRole("button", { name: /Save Changes/ }).click();
   await expect(page.locator(".status-badge")).toContainText("Successfully saved mailFilters.xml");
   await expect(page.getByText(/Written to mailFilters.xml/)).toBeVisible();
 
+  await page.getByPlaceholder("Sender address, domain, or query...").fill("team2@corp.com");
   await page.getByRole("button", { name: /Save As/ }).click();
   await expect(page.locator(".status-badge")).toContainText("Successfully saved as saved.xml");
 

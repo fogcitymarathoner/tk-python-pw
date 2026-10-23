@@ -21,6 +21,15 @@ import {
 } from "./lib/filterLogic";
 import "./App.css";
 
+function getNormalizedXml(headers: string, entries: FilterEntry[], footer: string): string {
+  if (entries.length === 0) return "";
+  const normalizedEntries = entries.map((entry) => ({
+    ...entry,
+    updated: "2000-01-01T00:00:00Z",
+  }));
+  return serializeXml(headers, normalizedEntries, footer);
+}
+
 export default function App() {
   // Check for cached XML in localStorage to enable instant loading on sleep-wake/restart
   const [entries, setEntries] = useState<FilterEntry[]>(() => {
@@ -107,6 +116,34 @@ export default function App() {
     return localStorage.getItem("tauri_email_filters_current_path");
   });
 
+  // Normalized baseline XML string representing last loaded/saved disk state
+  const [savedXmlNorm, setSavedXmlNorm] = useState<string>(() => {
+    const cachedSaved = localStorage.getItem("tauri_email_filters_saved_xml_norm");
+    if (cachedSaved) return cachedSaved;
+    return "";
+  });
+
+  // Current normalized XML string
+  const currentXmlNorm = useMemo(() => {
+    return getNormalizedXml(headers, entries, footer);
+  }, [headers, entries, footer]);
+
+  // If savedXmlNorm is not set yet, set it once data is loaded
+  useEffect(() => {
+    if (entries.length > 0 && !savedXmlNorm) {
+      const norm = getNormalizedXml(headers, entries, footer);
+      setSavedXmlNorm(norm);
+      localStorage.setItem("tauri_email_filters_saved_xml_norm", norm);
+    }
+  }, [entries, headers, footer, savedXmlNorm]);
+
+  // Derived dirty flag: true if current normalized XML differs from baseline saved normalized XML
+  const hasChanges = useMemo(() => {
+    if (entries.length === 0) return false;
+    if (!savedXmlNorm) return false;
+    return currentXmlNorm !== savedXmlNorm;
+  }, [entries.length, currentXmlNorm, savedXmlNorm]);
+
   // Keep the localStorage cache fully in sync with the state variables
   useEffect(() => {
     if (entries.length > 0) {
@@ -114,12 +151,30 @@ export default function App() {
       localStorage.setItem("tauri_email_filters_cached_xml", serialized);
       localStorage.setItem("tauri_email_filters_cached_status", status);
       localStorage.setItem("tauri_email_filters_cached_status_msg", statusMsg);
+      if (savedXmlNorm) {
+        localStorage.setItem("tauri_email_filters_saved_xml_norm", savedXmlNorm);
+      }
     } else {
       localStorage.removeItem("tauri_email_filters_cached_xml");
       localStorage.removeItem("tauri_email_filters_cached_status");
       localStorage.removeItem("tauri_email_filters_cached_status_msg");
+      localStorage.removeItem("tauri_email_filters_saved_xml_norm");
     }
-  }, [entries, headers, footer, status, statusMsg]);
+  }, [entries, headers, footer, status, statusMsg, savedXmlNorm]);
+
+  // Sync status badge when changes are made or reverted
+  useEffect(() => {
+    if (status === "loading" || status === "saved" || status === "error") return;
+
+    if (!hasChanges && status === "modified") {
+      setStatus("loaded");
+      setStatusMsg(
+        currentFilePath
+          ? `Active: ${getFileName(currentFilePath)}`
+          : "Natively loaded mailFilters.xml"
+      );
+    }
+  }, [hasChanges, currentFilePath, status]);
 
   // Sync the currentFilePath with localStorage
   useEffect(() => {
@@ -149,9 +204,12 @@ export default function App() {
             if (storedPath) {
               const content = await invoke<string>("read_filters_from_path", { path: storedPath });
               const parsed = parseXml(content);
+              const norm = getNormalizedXml(parsed.headers, parsed.entries, parsed.footer);
               setHeaders(parsed.headers);
               setFooter(parsed.footer);
               setEntries(parsed.entries);
+              setSavedXmlNorm(norm);
+              localStorage.setItem("tauri_email_filters_saved_xml_norm", norm);
               if (parsed.entries.length > 0) {
                 setSelectedIdx(0);
               }
@@ -160,9 +218,12 @@ export default function App() {
             } else {
               const content = await invoke<string>("read_filters_file");
               const parsed = parseXml(content);
+              const norm = getNormalizedXml(parsed.headers, parsed.entries, parsed.footer);
               setHeaders(parsed.headers);
               setFooter(parsed.footer);
               setEntries(parsed.entries);
+              setSavedXmlNorm(norm);
+              localStorage.setItem("tauri_email_filters_saved_xml_norm", norm);
               if (parsed.entries.length > 0) {
                 setSelectedIdx(0);
               }
@@ -210,15 +271,20 @@ export default function App() {
       setStatus("loading");
       setStatusMsg("Saving filter data...");
       const serialized = serializeXml(headers, entries, footer);
+      const norm = getNormalizedXml(headers, entries, footer);
 
       if (isTauriApp) {
         if (currentFilePath) {
           await invoke("write_filters_to_path", { path: currentFilePath, content: serialized });
+          setSavedXmlNorm(norm);
+          localStorage.setItem("tauri_email_filters_saved_xml_norm", norm);
           setStatus("saved");
           setStatusMsg(`Successfully saved ${getFileName(currentFilePath)}! (Backup created)`);
           setToastMsg(`Written to ${getFileName(currentFilePath)} and backed up!`);
         } else {
           await invoke("write_filters_file", { content: serialized });
+          setSavedXmlNorm(norm);
+          localStorage.setItem("tauri_email_filters_saved_xml_norm", norm);
           setStatus("saved");
           setStatusMsg("Successfully saved mailFilters.xml! (Backup created)");
           setToastMsg("Written to mailFilters.xml and backed up as mailFilters.xml.bak!");
@@ -241,6 +307,8 @@ export default function App() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
+        setSavedXmlNorm(norm);
+        localStorage.setItem("tauri_email_filters_saved_xml_norm", norm);
         setStatus("saved");
         setStatusMsg("File downloaded successfully!");
         setToastMsg("Filter file downloaded successfully to your machine!");
@@ -285,9 +353,12 @@ export default function App() {
       const content = await invoke<string>("read_filters_from_path", { path: selectedPath });
       
       const parsed = parseXml(content);
+      const norm = getNormalizedXml(parsed.headers, parsed.entries, parsed.footer);
       setHeaders(parsed.headers);
       setFooter(parsed.footer);
       setEntries(parsed.entries);
+      setSavedXmlNorm(norm);
+      localStorage.setItem("tauri_email_filters_saved_xml_norm", norm);
       setCurrentFilePath(selectedPath);
       if (parsed.entries.length > 0) {
         setSelectedIdx(0);
@@ -308,6 +379,7 @@ export default function App() {
     try {
       const defaultName = currentFilePath ? getFileName(currentFilePath) : "mailFilters.xml";
       const serialized = serializeXml(headers, entries, footer);
+      const norm = getNormalizedXml(headers, entries, footer);
 
       if (isTauriApp) {
         setStatus("loading");
@@ -322,6 +394,8 @@ export default function App() {
         setStatusMsg(`Saving to ${getFileName(savePath)}...`);
         await invoke("write_filters_to_path", { path: savePath, content: serialized });
         
+        setSavedXmlNorm(norm);
+        localStorage.setItem("tauri_email_filters_saved_xml_norm", norm);
         setCurrentFilePath(savePath);
         setStatus("saved");
         setStatusMsg(`Successfully saved as ${getFileName(savePath)}!`);
@@ -343,6 +417,8 @@ export default function App() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
+        setSavedXmlNorm(norm);
+        localStorage.setItem("tauri_email_filters_saved_xml_norm", norm);
         setStatus("saved");
         setStatusMsg("File downloaded successfully!");
         setToastMsg("Filter file downloaded successfully!");
@@ -469,8 +545,8 @@ export default function App() {
   };
 
   // Duplicate an existing filter
-  const handleDuplicateFilter = (idx: number, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDuplicateFilter = (idx: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     const result = duplicateFilterAt(entries, idx);
     setEntries(result.entries);
     setSelectedIdx(result.selectedIdx);
@@ -609,10 +685,18 @@ export default function App() {
               <button className="btn btn-accent" onClick={handleAddFilter}>
                 ➕ Add New Filter
               </button>
-              <button className="btn btn-accent" onClick={handleSaveAs}>
+              <button
+                className="btn btn-accent"
+                onClick={handleSaveAs}
+                disabled={!hasChanges || status === "loading"}
+              >
                 💾 Save As...
               </button>
-              <button className="btn btn-primary" onClick={handleSave}>
+              <button
+                className="btn btn-primary"
+                onClick={handleSave}
+                disabled={!hasChanges || status === "loading"}
+              >
                 💾 Save Changes
               </button>
             </>
@@ -855,9 +939,20 @@ export default function App() {
                 {selectedEntry ? (
                   <>
                     <div className="editor-header">
-                      <h2>Filter Configuration</h2>
-                      <p style={{ wordBreak: "break-all" }}>ID: {selectedEntry.id}</p>
-                      <p>Last Evaluated/Updated: {selectedEntry.updated}</p>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+                        <div>
+                          <h2>Filter Configuration</h2>
+                          <p style={{ wordBreak: "break-all" }}>ID: {selectedEntry.id}</p>
+                          <p>Last Evaluated/Updated: {selectedEntry.updated}</p>
+                        </div>
+                        <button
+                          className="btn btn-accent"
+                          onClick={() => selectedIdx !== null && handleDuplicateFilter(selectedIdx)}
+                          title="Duplicate this filter directly below"
+                        >
+                          📄 Duplicate Filter
+                        </button>
+                      </div>
                     </div>
 
                     <div className="editor-scroll">

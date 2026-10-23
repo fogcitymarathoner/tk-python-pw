@@ -198,7 +198,7 @@ describe("App editing and file actions", () => {
     fireEvent.pointerEnter(filterCard(2));
     fireEvent.pointerUp(filterCard(2));
     fireEvent.pointerUp(window);
-    expectStatus("Unsaved changes present");
+    expectStatus("Natively loaded mailFilters.xml");
   });
 
   it("opens the hidden file picker in browser mode", async () => {
@@ -214,6 +214,7 @@ describe("App editing and file actions", () => {
 
   it("saves to the default file and shows a toast", async () => {
     const { user } = await renderTauri();
+    await user.type(screen.getByPlaceholderText(/Sender address/), "test@example.com");
     await user.click(screen.getByRole("button", { name: /Save Changes/ }));
     await expectStatusSoon(/Successfully saved mailFilters.xml/);
     expect(screen.getByText(/Written to mailFilters.xml/)).toBeInTheDocument();
@@ -222,6 +223,7 @@ describe("App editing and file actions", () => {
   it("saves a previously opened custom path", async () => {
     localStorage.setItem("tauri_email_filters_current_path", "D:\\\\mail\\\\work.xml");
     const { user } = await renderTauri();
+    await user.type(screen.getByPlaceholderText(/Sender address/), "test@example.com");
     await user.click(screen.getByRole("button", { name: /Save Changes/ }));
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith(
@@ -240,6 +242,7 @@ describe("App editing and file actions", () => {
     });
     await expectStatusSoon("Loaded custom.xml");
 
+    await user.type(screen.getByPlaceholderText(/Sender address/), "test@example.com");
     await user.click(screen.getByRole("button", { name: /Save As/ }));
     await expectStatusSoon(/Successfully saved as saved.xml/);
 
@@ -263,6 +266,7 @@ describe("App editing and file actions", () => {
     });
     await user.click(screen.getByRole("button", { name: /Open File/ }));
     await expectStatusSoon("Natively loaded mailFilters.xml");
+    await user.type(screen.getByPlaceholderText(/Sender address/), "test@example.com");
     await user.click(screen.getByRole("button", { name: /Save As/ }));
     await expectStatusSoon("Natively loaded mailFilters.xml");
     await user.click(screen.getByRole("button", { name: /Save Changes/ }));
@@ -277,6 +281,7 @@ describe("App editing and file actions", () => {
 
   it("reports a save-as error", async () => {
     const { user } = await renderTauri(SAMPLE_XML, { fail: { select_save_path: "disk full" } });
+    await user.type(screen.getByPlaceholderText(/Sender address/), "test@example.com");
     await user.click(screen.getByRole("button", { name: /Save As/ }));
     await expectStatusSoon("Failed to save: disk full");
   });
@@ -320,9 +325,13 @@ describe("App editing and file actions", () => {
     await user.upload(input, file);
     await expectStatusSoon("Loaded mailFilters.xml");
 
+    await user.type(screen.getByPlaceholderText(/Sender address/), "test@example.com");
+
     const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     await user.click(screen.getByRole("button", { name: /Save Changes/ }));
     await expectStatusSoon("File downloaded successfully!");
+
+    await user.type(screen.getByPlaceholderText(/Sender address/), "test2@example.com");
     await user.click(screen.getByRole("button", { name: /Save As/ }));
     await user.click(screen.getByRole("button", { name: /Copy Report/ }));
     clickSpy.mockRestore();
@@ -331,6 +340,46 @@ describe("App editing and file actions", () => {
     fireEvent.pointerEnter(filterCard(2));
     fireEvent.pointerUp(window);
     expectStatus("Unsaved changes present");
+  });
+
+  it("disables Save and Save As buttons when there are no changes, enables on edit, disables on revert, and disables after save", async () => {
+    const { user } = await renderTauri();
+
+    const saveBtn = screen.getByRole("button", { name: /Save Changes/ });
+    const saveAsBtn = screen.getByRole("button", { name: /Save As/ });
+
+    // 1. Initially disabled when loaded with no changes
+    expect(saveBtn).toBeDisabled();
+    expect(saveAsBtn).toBeDisabled();
+
+    // 2. Making a change enables Save and Save As
+    const senderInput = screen.getByPlaceholderText(/Sender address/);
+    await user.clear(senderInput);
+    await user.type(senderInput, "new-sender@domain.com");
+
+    expect(saveBtn).toBeEnabled();
+    expect(saveAsBtn).toBeEnabled();
+    expectStatus("Unsaved changes present");
+
+    // 3. Reverting the change back to original value disables Save and Save As again
+    await user.clear(senderInput);
+    await user.type(senderInput, "alice@example.com");
+
+    expect(saveBtn).toBeDisabled();
+    expect(saveAsBtn).toBeDisabled();
+    expectStatus("Natively loaded mailFilters.xml");
+
+    // 4. Editing again and saving disables Save and Save As after save
+    await user.clear(senderInput);
+    await user.type(senderInput, "modified@domain.com");
+    expect(saveBtn).toBeEnabled();
+    expect(saveAsBtn).toBeEnabled();
+
+    await user.click(saveBtn);
+    await expectStatusSoon(/Successfully saved mailFilters.xml/);
+
+    expect(saveBtn).toBeDisabled();
+    expect(saveAsBtn).toBeDisabled();
   });
 
   it("ignores pointer-down on action buttons and cancelled uploads", async () => {
@@ -348,5 +397,33 @@ describe("App editing and file actions", () => {
     await user.click(screen.getByRole("button", { name: /Add New Filter/ }));
     expect(screen.getByDisplayValue("Greater than (s_sl)")).toBeInTheDocument();
     expect(screen.getByText(/Active Filters:/).textContent).toContain("3");
+  });
+
+  it("disables Save and Save As buttons when a newly added filter is removed", async () => {
+    const { user } = await renderTauri();
+
+    const saveBtn = screen.getByRole("button", { name: /Save Changes/ });
+    const saveAsBtn = screen.getByRole("button", { name: /Save As/ });
+
+    expect(saveBtn).toBeDisabled();
+    expect(saveAsBtn).toBeDisabled();
+
+    // Add a new filter
+    await user.click(screen.getByRole("button", { name: /Add New Filter/ }));
+
+    expect(saveBtn).toBeEnabled();
+    expect(saveAsBtn).toBeEnabled();
+    expectStatus("Unsaved changes present");
+
+    // Remove the newly added filter
+    (window.confirm as jest.Mock).mockReturnValueOnce(true);
+    await user.click(within(filterCard(1)).getByTitle("Delete Filter"));
+
+    // Buttons should be disabled again
+    await waitFor(() => {
+      expect(saveBtn).toBeDisabled();
+      expect(saveAsBtn).toBeDisabled();
+    });
+    await expectStatusSoon(/Natively loaded mailFilters\.xml/);
   });
 });

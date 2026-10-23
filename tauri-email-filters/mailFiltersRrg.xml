@@ -1,18 +1,19 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <feed xmlns='http://www.w3.org/2005/Atom' xmlns:apps='http://schemas.google.com/apps/2006'>
 	<title>Mail Filters</title>
-	<id>tag:mail.google.com,2008:filters:z0000001788641127322*1321512186345730678,z0000001788641127648*7069979071275033235,z0000001788641128716*8167793104295516917,z0000001788641129786*0815241298335918843,z0000001788641131016*0970231265788153234,z0000001788641131852*7116871612766991373,z0000001788641132766*9151652221487502607,z0000001788641133724*2747519874626491145,z0000001788641134759*6385326420880302567,z0000001788641135596*0161305935830751068,z0000001788641136501*5222225400514848459,z0000001788641137328*0810016809399618913,z0000001788641138117*1581760303710922032,z0000001788641138867*4464731347160967012,z0000001788641139652*4981026239590717292,z0000001788641140442*8756421132486380750,z0000001788641141605*4591635696399615996,z0000001788641142571*4670479958885240677,z0000001788641143443*8559235135357772330,z0000001788641144238*4881179079808190571,z0000001788641145041*5360108679146303241,z0000001788641145794*3992836885963794267,z0000001788641146562*6622764824475965108,z0000001788641147525*2525518067270673386,z0000001788641148442*8318186271159003473,z0000001788641149254*0700886188934330733,z0000001788641150017*1525427200046144544,z0000001788641150796*2620363122917504201,z0000001788641151553*7286772689786097190,z0000001788641152500*9157777518685987793,z0000001788641153272*2710269860194966052,z0000001788641154009*4867524394523607787,z0000001788641154746*0625062502874272016,z0000001788641155511*2276783873825508556,z0000001788641156465*4788441154429953371,z0000001788641157230*1553993188896534757,z0000001788641158069*5517677969264423352,z0000001788641158980*0838614326109243843,z0000001788641159751*8847668284504222903,z0000001788641160782*1311111967221601316,z0000001788641161519*0035736420200226491,z0000001788641162288*2757416157574472201,z0000001788641163073*1707288053653827206,z0000001788641163816*6296124416879548073,z0000001788641164581*2573494555501243467,z0000001788641165363*3952127050528520214,z0000001788641166164*4461069369662083624,z0000001788641166875*5182968817945525384,z0000001788641167625*0446662216622592691,z0000001788641168369*7930983820236349361,z0000001788641169229*9028767252381103567,z0000001788641169958*4012771630043156672</id>
-	<updated>2026-09-21T15:33:17Z</updated>
+	<id>tag:mail.google.com,2008:filters:z0000001792533225671*8112128439468619984,z0000001792533225997*7004404702285111709,z0000001792533227173*2406814254159830618,z0000001792533228277*7838527429667936803,z0000001792533229507*4116940582024905560,z0000001792533230397*0316991044905652373,z0000001792533231434*1510304201417710497,z0000001792533232370*0099646430957111976,z0000001792533233324*8238476153199170504,z0000001792533234153*2035510530914888648,z0000001792533234911*1884639724554744335,z0000001792533235654*4384236572605893232,z0000001792533236426*4045472826020418186,z0000001792533237197*2903059406420029545,z0000001792533237988*4809645288143682019,z0000001792533238811*4610002632106533489,z0000001792533239656*3659532392567846756,z0000001792533241104*3023811897875809817,z0000001792533242082*3000013668659272175,z0000001792533242977*6840562446176423133,z0000001792533243923*3112263633397120817,z0000001792533244826*4700541411784231321,z0000001792533245747*3393324310979454151,z0000001792533246668*2779152335473804583,z0000001792533247611*2337933351539129369,z0000001792533248642*6762131761713370901,z0000001792533249422*6903162471032145682,z0000001792533250252*7092679658630043032,z0000001792533251125*7878533868878002044,z0000001792533251995*1640881741880479937,z0000001792533252937*8606926714668983177,z0000001792533253751*5610378667161580306,z0000001792533254637*3868532316700848211,z0000001792533255505*5671085153530384254,z0000001792533256331*7460400524110207374,z0000001792533257287*3166609055590602968,z0000001792533258651*0380748285918988986,z0000001792533259505*7957796849515017612,z0000001792533260467*1160611053719893294,z0000001792533261390*2040417179722977157,z0000001792533262416*7497648049719753324,z0000001792533263944*1000709365852659867,z0000001792533264746*3310082593714243669,z0000001792533265515*1394561838648872688,z0000001792533267007*7261161270610916337,z0000001792533267857*0052780545771192151,z0000001792533268690*1659889626941925298,z0000001792533269611*6250539066533232067,z0000001792533270547*2455463762899506869,z0000001792533271566*3975239578856569858,z0000001792533272383*7443265126363583205,z0000001792533273399*7480273031273918326,z0000001792533274652*0802018545654095197,z0000001792533275613*5081629057292069711</id>
+	<updated>2026-10-21T14:28:50Z</updated>
 	<author>
 		<name>marc condon</name>
 		<email>marc@rocketsredglare.com</email>
 	</author>
 	
+	
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641127322*1321512186345730678</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533225671*8112128439468619984</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='shouldMarkAsRead' value='true'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
@@ -22,8 +23,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641127648*7069979071275033235</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533225997*7004404702285111709</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='shouldMarkAsRead' value='true'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
@@ -33,8 +34,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641128716*8167793104295516917</id>
-		<updated>2026-09-21T15:36:28Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533227173*2406814254159830618</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='-&quot;amazon&quot; -&quot;github&quot; -&quot;godaddy&quot; -&quot;networksolutions&quot; -&quot;primevideo&quot; -&quot;quora&quot; -&quot;udacity&quot; -&quot;google&quot;'/>
 		<apps:property name='label' value='marc@fogtest.com'/>
@@ -46,8 +47,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641129786*0815241298335918843</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533228277*7838527429667936803</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='shipment-tracking AND amazon OR order-update AND amazon OR return  AND amazon OR auto-confirm AND amazon'/>
 		<apps:property name='label' value='marc@fogtest.com/Amazon/orders'/>
@@ -58,21 +59,47 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641131016*0970231265788153234</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533229507*4116940582024905560</id>
+		<updated>2026-10-22T23:31:50Z</updated>
 		<content></content>
-		<apps:property name='from' value='amazon -&quot;shipment&quot; -&quot;tracking&quot; '/>
+		<apps:property name='from' value='amazon -&quot;invoicing&quot; -&quot;shipment&quot; -&quot;tracking&quot; '/>
 		<apps:property name='label' value='marc@fogtest.com/Amazon'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
-		<apps:property name='subject' value='-&quot;ORDERED&quot; -&quot;SHIPPED&quot;'/>
+		<apps:property name='subject' value='-&quot;Amazon Web Services Billing Statement Available&quot; -&quot;ORDERED&quot; -&quot;SHIPPED&quot;'/>
 		<apps:property name='to' value='fogtest.com'/>
 	</entry>
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641131852*7116871612766991373</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792711928185</id>
+		<updated>2026-10-22T23:33:27Z</updated>
+		<content></content>
+		<apps:property name='from' value='amazon'/>
+		<apps:property name='label' value='marc@fogtest.com/AWS/Billing Statement'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='&quot;Amazon Web Services Billing Statement Available&quot;'/>
+		<apps:property name='to' value='fogtest.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001792712041573</id>
+		<updated>2026-10-22T23:34:34Z</updated>
+		<content></content>
+		<apps:property name='from' value='amazon'/>
+		<apps:property name='label' value='BILLS-PERSONAL'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='&quot;Amazon Web Services Billing Statement Available&quot;'/>
+		<apps:property name='to' value='fogtest.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001792533230397*0316991044905652373</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='amazonmusic'/>
 		<apps:property name='label' value='marc@fogtest.com/Amazon'/>
@@ -83,8 +110,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641132766*9151652221487502607</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533231434*1510304201417710497</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='github'/>
 		<apps:property name='label' value='marc@fogtest.com/Github'/>
@@ -96,8 +123,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641133724*2747519874626491145</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533232370*0099646430957111976</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='github'/>
 		<apps:property name='label' value='marc@fogtest.com/Github/Receipts'/>
@@ -109,8 +136,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641134759*6385326420880302567</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533233324*8238476153199170504</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='godaddy'/>
 		<apps:property name='label' value='marc@fogtest.com/Godaddy'/>
@@ -121,8 +148,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641135596*0161305935830751068</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533234153*2035510530914888648</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='google'/>
 		<apps:property name='label' value='marc@fogtest.com/Google'/>
@@ -133,8 +160,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001790005006543</id>
-		<updated>2026-09-21T15:37:38Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533234911*1884639724554744335</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='networksolutions'/>
 		<apps:property name='label' value='marc@fogtest.com/Network Solutions'/>
@@ -145,8 +172,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641136501*5222225400514848459</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533235654*4384236572605893232</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='primevideo'/>
 		<apps:property name='label' value='marc@fogtest.com/Amazon'/>
@@ -157,8 +184,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641137328*0810016809399618913</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533236426*4045472826020418186</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='label' value='monique@fogtest.com'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
@@ -168,8 +195,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641138117*1581760303710922032</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533237197*2903059406420029545</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='label' value='marc@fogtest.com/Pinecone'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
@@ -180,8 +207,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641138867*4464731347160967012</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533237988*4809645288143682019</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='quora'/>
 		<apps:property name='label' value='marc@fogtest.com/quora'/>
@@ -192,8 +219,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641139652*4981026239590717292</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533238811*4610002632106533489</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='udacity'/>
 		<apps:property name='label' value='Udacity'/>
@@ -204,8 +231,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641140442*8756421132486380750</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533239656*3659532392567846756</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='shouldMarkAsRead' value='true'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
@@ -215,10 +242,10 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641141605*4591635696399615996</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533241104*3023811897875809817</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
-		<apps:property name='from' value='-&quot;amazon&quot; -&quot;bayclubs&quot; -&quot;circle7&quot; -&quot;cybercoders&quot; -&quot;ebay&quot; -&quot;ftb&quot; -&quot;glassdoor&quot; -&quot;google&quot; -&quot;gusto&quot; -&quot;indeed&quot; -&quot;irs&quot; -&quot;kp.org&quot; -&quot;lyft&quot; -&quot;openai&quot; -&quot;recology&quot; -&quot;schwab&quot; -&quot;t-mobile&quot; -&quot;usaa&quot; -&quot;wellsfargo.com&quot; -&quot;youtube&quot; -&quot;voice-noreply&quot;'/>
+		<apps:property name='from' value='-&quot;amazon&quot; -&quot;bayclubs&quot; -&quot;circle7&quot; -&quot;cybercoders&quot; -&quot;ebay&quot; -&quot;ftb&quot; -&quot;glassdoor&quot; -&quot;google&quot; -&quot;gusto&quot; -&quot;indeed&quot; -&quot;irs&quot; -&quot;kp.org&quot; -&quot;lyft&quot; -&quot;openai&quot; -&quot;recology&quot; -&quot;schwab&quot; -&quot;t-mobile&quot; -&quot;usaa&quot; -&quot;wellsfargo.com&quot; -&quot;youtube&quot; -&quot;voice-noreply&quot; -&quot;swimoutlet&quot;'/>
 		<apps:property name='label' value='marc@rocketsredglare.com'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
@@ -227,8 +254,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641142571*4670479958885240677</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533242082*3000013668659272175</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='bayclubs'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/bayclub'/>
@@ -240,8 +267,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641143443*8559235135357772330</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533242977*6840562446176423133</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='bayclubs'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/bayclub/Billing Statement'/>
@@ -253,8 +280,21 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641144238*4881179079808190571</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792594464801</id>
+		<updated>2026-10-21T14:54:45Z</updated>
+		<content></content>
+		<apps:property name='from' value='bayclubs'/>
+		<apps:property name='label' value='BILLS-PERSONAL'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='Your Bay Club Statement'/>
+		<apps:property name='to' value='rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001792533243923*3112263633397120817</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='bayclubs'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/bayclub/Reciept'/>
@@ -266,8 +306,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641145041*5360108679146303241</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533244826*4700541411784231321</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='circle7 OR gusto'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/Circle7'/>
@@ -278,8 +318,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641145794*3992836885963794267</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533245747*3393324310979454151</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='ebay'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/Ebay'/>
@@ -290,8 +330,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641146562*6622764824475965108</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533246668*2779152335473804583</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='ftb'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/FTB'/>
@@ -302,8 +342,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641147525*2525518067270673386</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533247611*2337933351539129369</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='googleplay'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/Google Play'/>
@@ -314,8 +354,21 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641148442*8318186271159003473</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792593189063</id>
+		<updated>2026-10-21T14:35:34Z</updated>
+		<content></content>
+		<apps:property name='from' value='googleplay'/>
+		<apps:property name='label' value='BILLS-PERSONAL'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='Your Google Play Order Receipt from'/>
+		<apps:property name='to' value='rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001792533248642*6762131761713370901</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='payments-noreply@google.com'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/google gcloud'/>
@@ -327,8 +380,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641149254*0700886188934330733</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533249422*6903162471032145682</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='payments-noreply@google.com'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/google gcloud/Payments'/>
@@ -340,8 +393,21 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641150017*1525427200046144544</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792593604980</id>
+		<updated>2026-10-21T14:40:26Z</updated>
+		<content></content>
+		<apps:property name='from' value='payments-noreply@google.com'/>
+		<apps:property name='label' value='BILLS-PERSONAL'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='&quot;Google Workspace: Your invoice is available for &quot;'/>
+		<apps:property name='to' value='rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001792533250252*7092679658630043032</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='indeed'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/indeed'/>
@@ -352,8 +418,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641150796*2620363122917504201</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533251125*7878533868878002044</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='Irs'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/IRS'/>
@@ -364,8 +430,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641151553*7286772689786097190</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533251995*1640881741880479937</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='kp.org'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/Kaiser'/>
@@ -376,8 +442,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641152500*9157777518685987793</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533252937*8606926714668983177</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='lyft'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/lyft'/>
@@ -390,8 +456,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641153272*2710269860194966052</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533253751*5610378667161580306</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='openai'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/OpenAI'/>
@@ -402,8 +468,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641154009*4867524394523607787</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533254637*3868532316700848211</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='recology'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/Recology'/>
@@ -414,8 +480,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641154746*0625062502874272016</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533255505*5671085153530384254</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='schwab'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/ameritrade'/>
@@ -426,8 +492,20 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641155511*2276783873825508556</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533256331*7460400524110207374</id>
+		<updated>2026-10-21T14:28:50Z</updated>
+		<content></content>
+		<apps:property name='from' value='swimoutlet'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/SwimOutlet'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001792533257287*3166609055590602968</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='t-mobile'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/tmobile'/>
@@ -438,8 +516,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641156465*4788441154429953371</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533258651*0380748285918988986</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='usaa'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/USAA'/>
@@ -450,8 +528,21 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641157230*1553993188896534757</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792594562463</id>
+		<updated>2026-10-21T14:56:48Z</updated>
+		<content></content>
+		<apps:property name='from' value='usaa'/>
+		<apps:property name='label' value='BILLS-PERSONAL'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='&quot;Google Workspace: Your invoice is available for &quot;'/>
+		<apps:property name='to' value='rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001792533259505*7957796849515017612</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='voice-noreply@google.com'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/Google Voice'/>
@@ -462,8 +553,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641158069*5517677969264423352</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533260467*1160611053719893294</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='youtube'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/Youtube'/>
@@ -474,8 +565,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641158980*0838614326109243843</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533261390*2040417179722977157</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='wellsfargo'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/wells fargo'/>
@@ -486,8 +577,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641159751*8847668284504222903</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533262416*7497648049719753324</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='shouldMarkAsRead' value='true'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
@@ -497,8 +588,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641160782*1311111967221601316</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533263944*1000709365852659867</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='-&quot;aws&quot; -&quot;linkedin&quot; -&quot;lensa&quot;'/>
 		<apps:property name='label' value='marc@sfdjango.com'/>
@@ -509,8 +600,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641161519*0035736420200226491</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533264746*3310082593714243669</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='aws@amazon.com'/>
 		<apps:property name='label' value='marc@sfdjango.com/AWS'/>
@@ -522,8 +613,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641162288*2757416157574472201</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533265515*1394561838648872688</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='aws@amazon.com'/>
 		<apps:property name='label' value='marc@sfdjango.com/AWS/Billing Statement'/>
@@ -535,8 +626,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641163073*1707288053653827206</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533267007*7261161270610916337</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='lensa'/>
 		<apps:property name='label' value='marc@sfdjango.com/Lensa'/>
@@ -549,8 +640,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641163816*6296124416879548073</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533267857*0052780545771192151</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='linkedin -&quot;Job Alerts&quot;'/>
 		<apps:property name='label' value='marc@sfdjango.com/linkedin'/>
@@ -561,8 +652,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641164581*2573494555501243467</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533268690*1659889626941925298</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='linkedin AND &quot;Job Alerts&quot;'/>
 		<apps:property name='label' value='marc@sfdjango.com/linkedin/Job Alerts'/>
@@ -573,8 +664,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641165363*3952127050528520214</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533269611*6250539066533232067</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='&quot;# FORWARDS&quot;'/>
 		<apps:property name='shouldMarkAsRead' value='true'/>
@@ -584,8 +675,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641166164*4461069369662083624</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533270547*2455463762899506869</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='&quot;# TRASH&quot;'/>
 		<apps:property name='shouldMarkAsRead' value='true'/>
@@ -595,8 +686,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641166875*5182968817945525384</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533271566*3975239578856569858</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='glassdoor'/>
 		<apps:property name='shouldMarkAsRead' value='true'/>
@@ -608,8 +699,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641167625*0446662216622592691</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533272383*7443265126363583205</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='marketplace.aws'/>
 		<apps:property name='shouldTrash' value='true'/>
@@ -619,8 +710,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641168369*7930983820236349361</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533273399*7480273031273918326</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='microsoft.com'/>
 		<apps:property name='shouldTrash' value='true'/>
@@ -632,8 +723,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641169229*9028767252381103567</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533274652*0802018545654095197</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='store-news@amazon.com'/>
 		<apps:property name='shouldTrash' value='true'/>
@@ -643,8 +734,8 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
-		<id>tag:mail.google.com,2008:filter:z0000001788641169958*4012771630043156672</id>
-		<updated>2026-09-21T15:33:17Z</updated>
+		<id>tag:mail.google.com,2008:filter:z0000001792533275613*5081629057292069711</id>
+		<updated>2026-10-21T14:28:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='tsdates'/>
 		<apps:property name='shouldTrash' value='true'/>
