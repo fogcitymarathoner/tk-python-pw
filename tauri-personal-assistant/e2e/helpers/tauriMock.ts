@@ -25,6 +25,12 @@ export const defaultE2eSeed: TauriSeed = {
       stdout: "wiki ready",
     },
     {
+      id: "database-api",
+      name: "Database API",
+      url: "http://localhost:8900",
+      canRebuild: false,
+    },
+    {
       id: "personal-data",
       name: "Personal Data App",
       canRebuild: true,

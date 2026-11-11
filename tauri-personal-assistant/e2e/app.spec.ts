@@ -6,6 +6,9 @@ test("renders the launcher and all app cards", async ({ page }) => {
   await gotoApp(page);
   await expect(page.getByText("Launch and monitor local apps")).toBeVisible();
   await expect(card(page, "Wiki")).toBeVisible();
+  await expect(card(page, "Database API")).toBeVisible();
+  await expect(card(page, "Database API").getByText("Opens at http://localhost:8900")).toBeVisible();
+  await expect(card(page, "Database API").getByRole("button", { name: "Rebuild" })).toBeHidden();
   await expect(card(page, "Personal Data App")).toBeVisible();
   await expect(card(page, "Gmail Filter Editor")).toBeVisible();
   await expect(card(page, "Wiki").getByText("Stopped")).toBeVisible();

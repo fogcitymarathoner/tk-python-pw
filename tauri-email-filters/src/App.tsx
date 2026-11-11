@@ -630,20 +630,37 @@ export default function App() {
 
   const selectedEntry = selectedIdx !== null ? entries[selectedIdx] : null;
 
+  const activeFileName = currentFilePath
+    ? getFileName(currentFilePath)
+    : entries.length > 0
+      ? "mailFilters.xml"
+      : null;
+
   return (
     <div className={`app-container ${draggedIndex !== null ? "dragging-active" : ""}`}>
       {/* Top Header Panel */}
       <header className="app-header">
         <div className="header-title-section">
           <h1>Gmail Filters Editor</h1>
-          <span className={`status-badge ${status === "saved" ? "success" : status === "modified" ? "warning" : ""}`}>
-            {statusMsg}
+          <span
+            className={`status-badge ${status === "saved" ? "success" : status === "modified" ? "warning" : ""}`}
+            title={currentFilePath || undefined}
+          >
+            {activeFileName ? (
+              <>
+                <span className="file-pin-label">📍 {activeFileName}</span>
+                {statusMsg && statusMsg !== `Active: ${activeFileName}` && (
+                  <>
+                    <span className="status-sep"> (</span>
+                    <span className="status-state-label">{statusMsg}</span>
+                    <span className="status-sep">)</span>
+                  </>
+                )}
+              </>
+            ) : (
+              statusMsg
+            )}
           </span>
-          {currentFilePath && (
-            <span className="file-path-badge" title={currentFilePath}>
-              📍 {getFileName(currentFilePath)}
-            </span>
-          )}
         </div>
         <div className="header-actions">
           {/* Always allow opening a file */}

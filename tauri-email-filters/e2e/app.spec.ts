@@ -90,3 +90,14 @@ test("shows web preview mode without a native backend", async ({ page }) => {
   await expect(page.getByText("Web Browser")).toBeVisible();
   await expect(page.getByText("No Active Filter Data Loaded")).toBeVisible();
 });
+
+test("unifies active file and unsaved status for custom files", async ({ page }) => {
+  await gotoApp(page, { xml: SAMPLE_XML, selectPath: "C:\\\\data\\\\custom.xml" });
+  await page.getByRole("button", { name: /Open File/ }).click();
+  await expect(page.locator(".status-badge")).toContainText("📍 custom.xml");
+
+  await page.getByPlaceholder("Sender address, domain, or query...").fill("user@example.com");
+  await expect(page.locator(".status-badge")).toContainText("📍 custom.xml");
+  await expect(page.locator(".status-badge")).toContainText("Unsaved changes present");
+  await expect(page.locator(".file-path-badge")).toHaveCount(0);
+});

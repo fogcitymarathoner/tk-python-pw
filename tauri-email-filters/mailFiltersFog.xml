@@ -12,6 +12,14 @@
 	
 	
 	
+	
+	
+	
+	
+	
+	
+	
+	
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
@@ -27,9 +35,9 @@
 		<category term='filter'></category>
 		<title>Mail Filter</title>
 		<id>tag:mail.google.com,2008:filter:z0000001792708683831</id>
-		<updated>2026-10-22T22:56:00Z</updated>
+		<updated>2026-10-31T22:01:04Z</updated>
 		<content></content>
-		<apps:property name='from' value='-&quot;pinterest&quot;'/>
+		<apps:property name='from' value='-&quot;pinterest&quot; -&quot;flickr&quot;'/>
 		<apps:property name='label' value='FROM: marc@sfgeek.net'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
@@ -39,10 +47,24 @@
 		<category term='filter'></category>
 		<title>Mail Filter</title>
 		<id>tag:mail.google.com,2008:filter:z0000001792709639653</id>
-		<updated>2026-10-22T22:55:07Z</updated>
+		<updated>2026-10-30T22:23:53Z</updated>
 		<content></content>
 		<apps:property name='from' value='&quot;pinterest&quot;'/>
 		<apps:property name='label' value='FROM: marc@sfgeek.net/pinterest'/>
+		<apps:property name='shouldArchive' value='true'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='marc@sfgeek.net'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001793484078825</id>
+		<updated>2026-10-31T22:01:34Z</updated>
+		<content></content>
+		<apps:property name='from' value='&quot;flickr&quot;'/>
+		<apps:property name='label' value='FROM: marc@sfgeek.net/flickr'/>
+		<apps:property name='shouldArchive' value='true'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
 		<apps:property name='to' value='marc@sfgeek.net'/>
@@ -134,13 +156,13 @@
 		<category term='filter'></category>
 		<title>Mail Filter</title>
 		<id>tag:mail.google.com,2008:filter:z0000001788641678349*9159278829888947357</id>
-		<updated>2026-10-20T22:24:43Z</updated>
+		<updated>2026-11-09T19:18:28Z</updated>
 		<content></content>
 		<apps:property name='from' value='github'/>
 		<apps:property name='label' value='marc@fogtest.com/Github'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
-		<apps:property name='subject' value='-&quot;reciept&quot;'/>
+		<apps:property name='subject' value='-&quot;reciept&quot; '/>
 		<apps:property name='to' value='fogtest'/>
 	</entry>
 	<entry>
@@ -154,6 +176,19 @@
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
 		<apps:property name='subject' value='reciept'/>
+		<apps:property name='to' value='fogtest'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001794251870541</id>
+		<updated>2026-11-09T19:19:00Z</updated>
+		<content></content>
+		<apps:property name='from' value='github'/>
+		<apps:property name='label' value='BILLS-PERSONAL'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='&quot;Payment Receipt for fogcitymarathoner&quot;'/>
 		<apps:property name='to' value='fogtest'/>
 	</entry>
 	<entry>
@@ -230,9 +265,9 @@
 		<category term='filter'></category>
 		<title>Mail Filter</title>
 		<id>tag:mail.google.com,2008:filter:z0000001788641681925*7347235420096282723</id>
-		<updated>2026-10-20T22:24:43Z</updated>
+		<updated>2026-11-09T19:12:15Z</updated>
 		<content></content>
-		<apps:property name='from' value='-firebase -glassdoor -google'/>
+		<apps:property name='from' value='-firebase -glassdoor -google -&quot;Daily Mail&quot;'/>
 		<apps:property name='label' value='fogcitymarathoner@gmail.com'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
@@ -246,6 +281,18 @@
 		<content></content>
 		<apps:property name='from' value='firebase'/>
 		<apps:property name='label' value='fogcitymarathoner@gmail.com/gcloud'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='gmail'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001794251549233</id>
+		<updated>2026-11-09T19:12:46Z</updated>
+		<content></content>
+		<apps:property name='from' value='&quot;Daily Mail&quot;'/>
+		<apps:property name='label' value='fogcitymarathoner@gmail.com/Daily Mail'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
 		<apps:property name='to' value='gmail'/>
@@ -336,11 +383,37 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001793811151038</id>
+		<updated>2026-11-04T16:53:46Z</updated>
+		<content></content>
+		<apps:property name='from' value='payments-noreply@google.com'/>
+		<apps:property name='label' value='BILLS-PERSONAL'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='&quot;Google Workspace: Your invoice is available for &quot;'/>
+		<apps:property name='to' value='rocketsredglare'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
 		<id>tag:mail.google.com,2008:filter:z0000001788641686343*0902957240868719083</id>
 		<updated>2026-10-20T22:24:43Z</updated>
 		<content></content>
 		<apps:property name='from' value='bayclubs'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/Bay Club/Statements'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='statement'/>
+		<apps:property name='to' value='rocketsredglare'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001793751561859</id>
+		<updated>2026-11-04T00:19:34Z</updated>
+		<content></content>
+		<apps:property name='from' value='bayclubs'/>
+		<apps:property name='label' value='BILLS-PERSONAL'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
 		<apps:property name='subject' value='statement'/>
@@ -534,13 +607,41 @@
 	<entry>
 		<category term='filter'></category>
 		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001793644171553</id>
+		<updated>2026-11-02T18:30:28Z</updated>
+		<content></content>
+		<apps:property name='from' value='Recology'/>
+		<apps:property name='label' value='BILLS-PERSONAL'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='&quot;Recurring Payment Scheduled&quot;'/>
+		<apps:property name='to' value='rocketsredglare'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
 		<id>tag:mail.google.com,2008:filter:z0000001792535184859</id>
-		<updated>2026-10-20T22:27:45Z</updated>
+		<updated>2026-11-11T19:08:13Z</updated>
 		<content></content>
 		<apps:property name='from' value='swimoutlet'/>
 		<apps:property name='label' value='marc@rocketsredglare.com/SwimOutlet'/>
+		<apps:property name='shouldArchive' value='true'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='-&quot;orders&quot; -&quot;arrived&quot; -&quot;shipped&quot;'/>
+		<apps:property name='to' value='marc@rocketsredglare.com'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001794424030077</id>
+		<updated>2026-11-11T19:08:58Z</updated>
+		<content></content>
+		<apps:property name='from' value='swimoutlet'/>
+		<apps:property name='label' value='marc@rocketsredglare.com/SwimOutlet/Orders'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='subject' value='&quot;orders&quot; &quot;arrived&quot; &quot;shipped&quot;'/>
 		<apps:property name='to' value='marc@rocketsredglare.com'/>
 	</entry>
 	<entry>
@@ -619,9 +720,9 @@
 		<category term='filter'></category>
 		<title>Mail Filter</title>
 		<id>tag:mail.google.com,2008:filter:z0000001788641695275*4204113785496678227</id>
-		<updated>2026-10-20T22:24:43Z</updated>
+		<updated>2026-11-07T21:53:41Z</updated>
 		<content></content>
-		<apps:property name='from' value='-cybercoders -indeed -lensa -linkedin'/>
+		<apps:property name='from' value='-cybercoders -indeed -lensa -linkedin -ziprecruiter'/>
 		<apps:property name='label' value='marc@sfdjango.com'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
@@ -680,10 +781,11 @@
 		<category term='filter'></category>
 		<title>Mail Filter</title>
 		<id>tag:mail.google.com,2008:filter:z0000001788641697454*7151247627060708404</id>
-		<updated>2026-10-20T22:24:43Z</updated>
+		<updated>2026-11-07T21:54:50Z</updated>
 		<content></content>
 		<apps:property name='from' value='linkedin AND -&quot;Job Alerts&quot;'/>
 		<apps:property name='label' value='marc@sfdjango.com/Linkedin'/>
+		<apps:property name='shouldArchive' value='true'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
 		<apps:property name='to' value='sfdjango'/>
@@ -692,10 +794,24 @@
 		<category term='filter'></category>
 		<title>Mail Filter</title>
 		<id>tag:mail.google.com,2008:filter:z0000001788641697908*6851264527194917138</id>
-		<updated>2026-10-20T22:24:43Z</updated>
+		<updated>2026-11-07T21:54:41Z</updated>
 		<content></content>
 		<apps:property name='from' value='linkedin AND &quot;Job Alerts&quot;'/>
 		<apps:property name='label' value='marc@sfdjango.com/Linkedin/Job Alerts'/>
+		<apps:property name='shouldArchive' value='true'/>
+		<apps:property name='sizeOperator' value='s_sl'/>
+		<apps:property name='sizeUnit' value='s_smb'/>
+		<apps:property name='to' value='sfdjango'/>
+	</entry>
+	<entry>
+		<category term='filter'></category>
+		<title>Mail Filter</title>
+		<id>tag:mail.google.com,2008:filter:z0000001794088442332</id>
+		<updated>2026-11-07T21:54:37Z</updated>
+		<content></content>
+		<apps:property name='from' value='ziprecruiter'/>
+		<apps:property name='label' value='marc@sfdjango.com/Ziprecruiter'/>
+		<apps:property name='shouldArchive' value='true'/>
 		<apps:property name='sizeOperator' value='s_sl'/>
 		<apps:property name='sizeUnit' value='s_smb'/>
 		<apps:property name='to' value='sfdjango'/>

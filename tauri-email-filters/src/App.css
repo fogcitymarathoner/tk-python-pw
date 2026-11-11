@@ -51,6 +51,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .header-title-section h1 {
@@ -60,13 +61,16 @@ body {
 }
 
 .status-badge {
-  font-size: 0.75rem;
-  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.8rem;
+  padding: 4px 10px;
   border-radius: 12px;
   font-weight: 500;
   background-color: rgba(88, 166, 255, 0.15);
   color: var(--accent-color);
   border: 1px solid rgba(88, 166, 255, 0.3);
+  white-space: nowrap;
 }
 
 .status-badge.success {
@@ -79,6 +83,19 @@ body {
   background-color: rgba(210, 153, 34, 0.15);
   color: var(--warning-color);
   border: 1px solid rgba(210, 153, 34, 0.3);
+}
+
+.status-badge .file-pin-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.status-badge .status-state-label {
+  color: inherit;
+}
+
+.status-badge .status-sep {
+  opacity: 0.7;
 }
 
 .file-path-badge {
@@ -97,7 +114,9 @@ body {
 
 .header-actions {
   display: flex;
+  align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 /* Buttons */

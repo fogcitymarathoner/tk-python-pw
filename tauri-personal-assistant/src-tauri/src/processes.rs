@@ -15,21 +15,34 @@ const WIKI_DIR: &str = r"C:\Users\marc\Documents\repos\mopo-ai\wiki";
 const WIKI_PORT: u16 = 8899;
 const WIKI_URL: &str = "http://localhost:8899";
 
-const PERSONAL_DATA_DIR: &str =
-    r"C:\Users\marc\Documents\repos\firebase_pw\tauri\src-tauri\target\x86_64-pc-windows-msvc\release";
+const DATABASE_API_DIR: &str = r"C:\Users\marc\Documents\repos\firebase_pw\api";
+const DATABASE_API_PORT: u16 = 8900;
+const DATABASE_API_URL: &str = "http://localhost:8900";
+
+const PERSONAL_DATA_ROOT: &str = r"C:\Users\marc\Documents\repos\firebase_pw\tauri\src-tauri";
 const PERSONAL_DATA_EXE: &str = "personal-data.exe";
 const PERSONAL_DATA_BUILD_DIR: &str = r"C:\Users\marc\Documents\repos\firebase_pw\tauri";
 
-const GMAIL_FILTER_DIR: &str =
-    r"C:\Users\marc\Documents\repos\firebase_pw\tauri-email-filters\src-tauri\target\x86_64-pc-windows-msvc\release";
+const GMAIL_FILTER_ROOT: &str =
+    r"C:\Users\marc\Documents\repos\firebase_pw\tauri-email-filters\src-tauri";
 const GMAIL_FILTER_EXE: &str = "gmail-filter-editor.exe";
 const GMAIL_FILTER_EXE_FALLBACK: &str = "tauri-app.exe";
 const GMAIL_FILTER_BUILD_DIR: &str =
     r"C:\Users\marc\Documents\repos\firebase_pw\tauri-email-filters";
 
+/// Directories a monitored app may be running from. `tauri build` on this
+/// machine writes `target\release`; an explicit `--target` build uses the triple.
+const MONITORED_TARGET_DIRS: [&str; 4] = [
+    r"target\release",
+    r"target\x86_64-pc-windows-msvc\release",
+    r"target\debug",
+    r"target\x86_64-pc-windows-msvc\debug",
+];
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AppId {
     Wiki,
+    DatabaseApi,
     PersonalData,
     GmailFilter,
 }
@@ -38,6 +51,7 @@ impl AppId {
     pub fn as_str(self) -> &'static str {
         match self {
             AppId::Wiki => "wiki",
+            AppId::DatabaseApi => "database-api",
             AppId::PersonalData => "personal-data",
             AppId::GmailFilter => "gmail-filter",
         }
@@ -46,6 +60,7 @@ impl AppId {
     pub fn from_str(value: &str) -> Option<Self> {
         match value {
             "wiki" => Some(AppId::Wiki),
+            "database-api" => Some(AppId::DatabaseApi),
             "personal-data" => Some(AppId::PersonalData),
             "gmail-filter" => Some(AppId::GmailFilter),
             _ => None,
@@ -81,11 +96,16 @@ struct AppDefinition {
     url: Option<&'static str>,
 }
 
-const APP_DEFINITIONS: [AppDefinition; 3] = [
+const APP_DEFINITIONS: [AppDefinition; 4] = [
     AppDefinition {
         id: AppId::Wiki,
         name: "Wiki",
         url: Some(WIKI_URL),
+    },
+    AppDefinition {
+        id: AppId::DatabaseApi,
+        name: "Database API",
+        url: Some(DATABASE_API_URL),
     },
     AppDefinition {
         id: AppId::PersonalData,
@@ -194,8 +214,15 @@ impl ProcessManager {
 
         let child = match id {
             AppId::Wiki => spawn_wiki(logs)?,
-            AppId::PersonalData => spawn_exe(PERSONAL_DATA_DIR, PERSONAL_DATA_EXE, logs)?,
-            AppId::GmailFilter => spawn_exe(GMAIL_FILTER_DIR, gmail_filter_exe(), logs)?,
+            AppId::DatabaseApi => spawn_database_api(logs)?,
+            AppId::PersonalData => {
+                spawn_monitored(PERSONAL_DATA_ROOT, &[PERSONAL_DATA_EXE], logs)?
+            }
+            AppId::GmailFilter => spawn_monitored(
+                GMAIL_FILTER_ROOT,
+                &[GMAIL_FILTER_EXE, GMAIL_FILTER_EXE_FALLBACK],
+                logs,
+            )?,
         };
 
         self.children
@@ -235,7 +262,7 @@ impl ProcessManager {
         let build_dir = match id {
             AppId::PersonalData => PERSONAL_DATA_BUILD_DIR,
             AppId::GmailFilter => GMAIL_FILTER_BUILD_DIR,
-            AppId::Wiki => unreachable!(),
+            AppId::Wiki | AppId::DatabaseApi => unreachable!(),
         };
 
         let logs = self.log_buffer(id);
@@ -353,20 +380,35 @@ fn spawn_wiki(logs: Arc<LogBuffer>) -> Result<Child, String> {
     spawn_with_logs(cmd, logs)
 }
 
-fn gmail_filter_exe() -> &'static str {
-    let primary = PathBuf::from(GMAIL_FILTER_DIR).join(GMAIL_FILTER_EXE);
-    if primary.exists() {
-        GMAIL_FILTER_EXE
-    } else {
-        GMAIL_FILTER_EXE_FALLBACK
-    }
+fn spawn_database_api(logs: Arc<LogBuffer>) -> Result<Child, String> {
+    let mut cmd = Command::new("node");
+    cmd.args(["--disable-warning=ExperimentalWarning", "src/index.ts"])
+        .current_dir(DATABASE_API_DIR);
+    spawn_with_logs(cmd, logs)
 }
 
-fn spawn_exe(dir: &str, exe_name: &str, logs: Arc<LogBuffer>) -> Result<Child, String> {
-    let exe_path = PathBuf::from(dir).join(exe_name);
+fn spawn_monitored(root: &str, exe_names: &[&str], logs: Arc<LogBuffer>) -> Result<Child, String> {
+    let exe_path = resolve_monitored_exe(root, exe_names);
     let mut cmd = Command::new(&exe_path);
-    cmd.current_dir(dir);
+    if let Some(dir) = exe_path.parent() {
+        cmd.current_dir(dir);
+    }
     spawn_with_logs(cmd, logs).map_err(|e| format!("Failed to start {}: {e}", exe_path.display()))
+}
+
+fn resolve_monitored_exe(root: &str, exe_names: &[&str]) -> PathBuf {
+    for exe_name in exe_names {
+        for dir in MONITORED_TARGET_DIRS {
+            let path = PathBuf::from(root).join(dir).join(exe_name);
+            if path.is_file() {
+                return path;
+            }
+        }
+    }
+
+    PathBuf::from(root)
+        .join(MONITORED_TARGET_DIRS[0])
+        .join(exe_names.first().copied().unwrap_or("app.exe"))
 }
 
 fn spawn_npm_tauri_build(dir: &str, logs: Arc<LogBuffer>) -> Result<Child, String> {
@@ -389,20 +431,27 @@ fn npm_command() -> Command {
 fn detect_external_running(id: AppId) -> bool {
     match id {
         AppId::Wiki => is_port_open(WIKI_PORT),
-        AppId::PersonalData => is_exe_running(PERSONAL_DATA_EXE, PERSONAL_DATA_DIR),
-        AppId::GmailFilter => {
-            is_exe_running(GMAIL_FILTER_EXE, GMAIL_FILTER_DIR)
-                || is_exe_running(GMAIL_FILTER_EXE_FALLBACK, GMAIL_FILTER_DIR)
+        AppId::DatabaseApi => is_port_open(DATABASE_API_PORT),
+        AppId::PersonalData => {
+            find_monitored_pid(&[PERSONAL_DATA_EXE], PERSONAL_DATA_ROOT).is_some()
         }
+        AppId::GmailFilter => find_monitored_pid(
+            &[GMAIL_FILTER_EXE, GMAIL_FILTER_EXE_FALLBACK],
+            GMAIL_FILTER_ROOT,
+        )
+        .is_some(),
     }
 }
 
 fn find_external_pid(id: AppId) -> Option<u32> {
     match id {
         AppId::Wiki => find_pid_on_port(WIKI_PORT),
-        AppId::PersonalData => find_exe_pid(PERSONAL_DATA_EXE, PERSONAL_DATA_DIR),
-        AppId::GmailFilter => find_exe_pid(GMAIL_FILTER_EXE, GMAIL_FILTER_DIR)
-            .or_else(|| find_exe_pid(GMAIL_FILTER_EXE_FALLBACK, GMAIL_FILTER_DIR)),
+        AppId::DatabaseApi => find_pid_on_port(DATABASE_API_PORT),
+        AppId::PersonalData => find_monitored_pid(&[PERSONAL_DATA_EXE], PERSONAL_DATA_ROOT),
+        AppId::GmailFilter => find_monitored_pid(
+            &[GMAIL_FILTER_EXE, GMAIL_FILTER_EXE_FALLBACK],
+            GMAIL_FILTER_ROOT,
+        ),
     }
 }
 
@@ -411,28 +460,60 @@ fn is_port_open(port: u16) -> bool {
     TcpStream::connect_timeout(&addr, Duration::from_millis(400)).is_ok()
 }
 
-fn is_exe_running(exe_name: &str, dir: &str) -> bool {
-    find_exe_pid(exe_name, dir).is_some()
-}
-
-fn find_exe_pid(exe_name: &str, dir: &str) -> Option<u32> {
+fn find_monitored_pid(exe_names: &[&str], root: &str) -> Option<u32> {
     let mut system = System::new();
     system.refresh_processes(ProcessesToUpdate::All, true);
-    let dir_lower = dir.to_lowercase();
 
     for (pid, process) in system.processes() {
-        if !process.name().eq_ignore_ascii_case(exe_name) {
-            continue;
-        }
-
-        if let Some(exe) = process.exe() {
-            if exe.to_string_lossy().to_lowercase().contains(&dir_lower) {
-                return Some(pid.as_u32());
-            }
+        let name = process.name().to_string_lossy();
+        let exe = process
+            .exe()
+            .map(|path| path.to_string_lossy().into_owned());
+        if monitored_process_matches(&name, exe.as_deref(), exe_names, root) {
+            return Some(pid.as_u32());
         }
     }
 
     None
+}
+
+fn monitored_process_matches(
+    process_name: &str,
+    exe_path: Option<&str>,
+    exe_names: &[&str],
+    root: &str,
+) -> bool {
+    let matched_name = exe_names
+        .iter()
+        .find(|expected| process_name.eq_ignore_ascii_case(expected));
+    let Some(matched_name) = matched_name else {
+        return false;
+    };
+
+    let Some(exe_path) = exe_path.map(normalize_path).filter(|path| !path.is_empty()) else {
+        // sysinfo can report a matching process with no image path. Unique exe
+        // names are still the app we monitor; the generic fallback name is not.
+        return !is_generic_exe(matched_name);
+    };
+
+    path_is_under(&exe_path, root)
+}
+
+fn is_generic_exe(name: &str) -> bool {
+    name.eq_ignore_ascii_case(GMAIL_FILTER_EXE_FALLBACK)
+}
+
+fn normalize_path(path: &str) -> String {
+    path.trim_start_matches(r"\\?\").replace('/', "\\").to_lowercase()
+}
+
+fn path_is_under(exe_path: &str, root: &str) -> bool {
+    let exe_path = normalize_path(exe_path);
+    let mut root = normalize_path(root);
+    if !root.ends_with('\\') {
+        root.push('\\');
+    }
+    exe_path.starts_with(&root)
 }
 
 fn find_pid_on_port(port: u16) -> Option<u32> {
@@ -467,5 +548,116 @@ fn kill_process(pid: u32) -> Result<(), String> {
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
         Err(format!("Failed to stop process {pid}: {stderr}"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detects_host_release_build_after_restart() {
+        assert!(monitored_process_matches(
+            "personal-data.exe",
+            Some(r"C:\Users\marc\Documents\repos\firebase_pw\tauri\src-tauri\target\release\personal-data.exe"),
+            &[PERSONAL_DATA_EXE],
+            PERSONAL_DATA_ROOT,
+        ));
+        assert!(monitored_process_matches(
+            "gmail-filter-editor.exe",
+            Some(r"C:\Users\marc\Documents\repos\firebase_pw\tauri-email-filters\src-tauri\target\release\gmail-filter-editor.exe"),
+            &[GMAIL_FILTER_EXE, GMAIL_FILTER_EXE_FALLBACK],
+            GMAIL_FILTER_ROOT,
+        ));
+    }
+
+    #[test]
+    fn detects_explicit_msvc_target_and_debug_builds() {
+        assert!(monitored_process_matches(
+            "personal-data.exe",
+            Some(r"C:\Users\marc\Documents\repos\firebase_pw\tauri\src-tauri\target\x86_64-pc-windows-msvc\release\personal-data.exe"),
+            &[PERSONAL_DATA_EXE],
+            PERSONAL_DATA_ROOT,
+        ));
+        assert!(monitored_process_matches(
+            "gmail-filter-editor.exe",
+            Some(r"C:\Users\marc\Documents\repos\firebase_pw\tauri-email-filters\src-tauri\target\debug\gmail-filter-editor.exe"),
+            &[GMAIL_FILTER_EXE, GMAIL_FILTER_EXE_FALLBACK],
+            GMAIL_FILTER_ROOT,
+        ));
+    }
+
+    #[test]
+    fn ignores_the_same_exe_outside_its_project() {
+        assert!(!monitored_process_matches(
+            "personal-data.exe",
+            Some(r"D:\apps\personal-data.exe"),
+            &[PERSONAL_DATA_EXE],
+            PERSONAL_DATA_ROOT,
+        ));
+        assert!(!monitored_process_matches(
+            "tauri-app.exe",
+            Some(r"C:\Users\marc\Documents\repos\firebase_pw\tauri\src-tauri\target\release\tauri-app.exe"),
+            &[GMAIL_FILTER_EXE, GMAIL_FILTER_EXE_FALLBACK],
+            GMAIL_FILTER_ROOT,
+        ));
+    }
+
+    #[test]
+    fn matches_a_unique_exe_when_the_image_path_is_missing() {
+        assert!(monitored_process_matches(
+            "Personal-Data.EXE",
+            None,
+            &[PERSONAL_DATA_EXE],
+            PERSONAL_DATA_ROOT,
+        ));
+        assert!(monitored_process_matches(
+            "gmail-filter-editor.exe",
+            Some(""),
+            &[GMAIL_FILTER_EXE, GMAIL_FILTER_EXE_FALLBACK],
+            GMAIL_FILTER_ROOT,
+        ));
+        assert!(!monitored_process_matches(
+            "tauri-app.exe",
+            None,
+            &[GMAIL_FILTER_EXE, GMAIL_FILTER_EXE_FALLBACK],
+            GMAIL_FILTER_ROOT,
+        ));
+    }
+
+    #[test]
+    fn accepts_extended_and_forward_slash_paths() {
+        assert!(monitored_process_matches(
+            "personal-data.exe",
+            Some(r"\\?\C:\Users\marc\Documents\repos\firebase_pw\tauri\src-tauri\target\release\personal-data.exe"),
+            &[PERSONAL_DATA_EXE],
+            PERSONAL_DATA_ROOT,
+        ));
+        assert!(monitored_process_matches(
+            "personal-data.exe",
+            Some("C:/Users/marc/Documents/repos/firebase_pw/tauri/src-tauri/target/debug/personal-data.exe"),
+            &[PERSONAL_DATA_EXE],
+            PERSONAL_DATA_ROOT,
+        ));
+    }
+
+    #[test]
+    fn resolves_the_built_release_binary() {
+        let personal = resolve_monitored_exe(PERSONAL_DATA_ROOT, &[PERSONAL_DATA_EXE]);
+        assert!(
+            personal.ends_with(r"target\release\personal-data.exe"),
+            "{}",
+            personal.display()
+        );
+
+        let gmail = resolve_monitored_exe(
+            GMAIL_FILTER_ROOT,
+            &[GMAIL_FILTER_EXE, GMAIL_FILTER_EXE_FALLBACK],
+        );
+        assert!(
+            gmail.ends_with(r"target\release\gmail-filter-editor.exe"),
+            "{}",
+            gmail.display()
+        );
     }
 }

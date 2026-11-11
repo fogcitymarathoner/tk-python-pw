@@ -426,4 +426,25 @@ describe("App editing and file actions", () => {
     });
     await expectStatusSoon(/Natively loaded mailFilters\.xml/);
   });
+
+  it("displays unified file and status indicator when editing custom file", async () => {
+    localStorage.setItem("tauri_email_filters_current_path", "C:\\data\\mailFiltersFog.xml");
+    const { user } = await renderTauri(SAMPLE_XML, {
+      read_filters_from_path: SAMPLE_XML,
+    });
+
+    const statusBadge = document.querySelector(".status-badge");
+    expect(statusBadge).not.toBeNull();
+    expect(statusBadge?.textContent).toContain("📍 mailFiltersFog.xml");
+    // Verify old separate file-path-badge is NOT rendered
+    expect(document.querySelector(".file-path-badge")).toBeNull();
+
+    // Modify a property to trigger unsaved changes
+    await user.type(screen.getByPlaceholderText(/Sender address/), "user@example.com");
+
+    // Unified badge should now show both the pin filename and unsaved changes status
+    expect(statusBadge?.textContent).toContain("📍 mailFiltersFog.xml");
+    expect(statusBadge?.textContent).toContain("Unsaved changes present");
+    expect(statusBadge?.classList.contains("warning")).toBe(true);
+  });
 });
