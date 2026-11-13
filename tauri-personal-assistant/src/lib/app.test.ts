@@ -53,6 +53,8 @@ function createBackend(initial: AppStatus[] = [wiki, personal]) {
       }
       case "backup_repo":
         return "C:\\\\backups\\\\repo.zip";
+      case "backup_wiki_db":
+        return "C:\\\\backups\\\\wikijs.zip";
       default:
         throw new Error(`unknown ${cmd}`);
     }
@@ -92,6 +94,17 @@ describe("renderCard and updateCard", () => {
 
     const withoutIcon = renderCard(personal, {}, jest.fn(), jest.fn(), jest.fn(), jest.fn());
     expect(withoutIcon.querySelector("img.app-icon")).toBeNull();
+  });
+
+  it("shows Backup DB on the wiki card and wires its callback", () => {
+    const onBackupDb = jest.fn();
+    const wikiCard = renderCard(wiki, {}, jest.fn(), jest.fn(), jest.fn(), jest.fn(), onBackupDb);
+    const otherCard = renderCard(personal, {}, jest.fn(), jest.fn(), jest.fn(), jest.fn());
+    document.body.appendChild(wikiCard);
+
+    expect(otherCard.querySelector(".btn-backup-db")).toBeNull();
+    fireEvent.click(wikiCard.querySelector(".btn-backup-db") as HTMLElement);
+    expect(onBackupDb).toHaveBeenCalledWith("wiki");
   });
 
   it("wires start, stop, rebuild, and accordion callbacks", () => {
@@ -245,6 +258,29 @@ describe("mountApp", () => {
     backend.fail.set("rebuild_app", "rebuild failed");
     await controller.rebuildApp("personal-data");
     expect(screen.getByText("rebuild failed")).toBeInTheDocument();
+  });
+
+  it("backs up the wiki database from the wiki card", async () => {
+    const { backend } = await mount();
+    const wikiCard = document.querySelector('[data-app-id="wiki"]') as HTMLElement;
+    const personalCard = document.querySelector('[data-app-id="personal-data"]') as HTMLElement;
+    expect(personalCard.querySelector(".btn-backup-db")).toBeNull();
+
+    fireEvent.click(wikiCard.querySelector(".btn-backup-db") as HTMLElement);
+    await waitFor(() => {
+      expect(wikiCard.querySelector(".db-backup-status")).toHaveTextContent(
+        "Database backup saved to C:\\\\backups\\\\wikijs.zip",
+      );
+    });
+    expect(backend.invoke).toHaveBeenCalledWith("backup_wiki_db");
+    expect(wikiCard.querySelector(".btn-backup-db")).toBeEnabled();
+
+    backend.fail.set("backup_wiki_db", "pg_dump failed");
+    fireEvent.click(wikiCard.querySelector(".btn-backup-db") as HTMLElement);
+    await waitFor(() => {
+      expect(wikiCard.querySelector(".db-backup-status")).toHaveTextContent("pg_dump failed");
+    });
+    expect(wikiCard.querySelector(".db-backup-status")).toHaveClass("error");
   });
 
   it("creates a backup and reports failures", async () => {

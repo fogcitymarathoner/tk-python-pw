@@ -32,6 +32,7 @@ export function renderCard(
   onStop: (id: string) => void,
   onRebuild: (id: string) => void,
   onAccordionToggle: (id: string, open: boolean) => void,
+  onBackupDb?: (id: string) => void,
 ): HTMLElement {
   const card = document.createElement("article");
   card.className = "app-card";
@@ -50,7 +51,9 @@ export function renderCard(
       <button type="button" class="btn-start">Start</button>
       <button type="button" class="btn-stop" disabled>Stop</button>
       <button type="button" class="btn-rebuild" hidden>Rebuild</button>
+      ${app.id === "wiki" ? `<button type="button" class="btn-backup-db">Backup DB</button>` : ""}
     </div>
+    ${app.id === "wiki" ? `<p class="db-backup-status" hidden></p>` : ""}
     <p class="error-msg" hidden></p>
     <details class="log-accordion">
       <summary>Logs</summary>
@@ -70,6 +73,7 @@ export function renderCard(
   card.querySelector(".btn-start")?.addEventListener("click", () => onStart(app.id));
   card.querySelector(".btn-stop")?.addEventListener("click", () => onStop(app.id));
   card.querySelector(".btn-rebuild")?.addEventListener("click", () => onRebuild(app.id));
+  card.querySelector(".btn-backup-db")?.addEventListener("click", () => onBackupDb?.(app.id));
 
   const accordion = card.querySelector(".log-accordion") as HTMLDetailsElement;
   accordion.addEventListener("toggle", () => {
@@ -185,6 +189,7 @@ export function mountApp(options: MountAppOptions) {
               openAccordions.delete(id);
             }
           },
+          (id) => void backupWikiDb(id),
         );
         cardElements.set(app.id, card);
         appsContainer.appendChild(card);
@@ -228,6 +233,28 @@ export function mountApp(options: MountAppOptions) {
     }
   };
 
+  const backupWikiDb = async (appId: string) => {
+    const card = cardElements.get(appId);
+    const button = card?.querySelector(".btn-backup-db") as HTMLButtonElement | null;
+    const status = card?.querySelector(".db-backup-status") as HTMLElement | null;
+    if (!button || !status) return;
+
+    button.disabled = true;
+    status.hidden = false;
+    status.classList.remove("error");
+    status.textContent = "Backing up wiki database…";
+
+    try {
+      const path = (await options.invoke("backup_wiki_db")) as string;
+      status.textContent = `Database backup saved to ${path}`;
+    } catch (error) {
+      status.classList.add("error");
+      status.textContent = String(error);
+    } finally {
+      button.disabled = false;
+    }
+  };
+
   const backupRepo = async () => {
     const button = doc.querySelector("#btn-backup") as HTMLButtonElement | null;
     const status = doc.querySelector("#backup-status") as HTMLElement | null;
@@ -267,6 +294,7 @@ export function mountApp(options: MountAppOptions) {
     stopApp,
     rebuildApp,
     backupRepo,
+    backupWikiDb,
     cardElements,
     openAccordions,
     destroy() {

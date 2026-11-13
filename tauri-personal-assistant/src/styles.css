@@ -37,24 +37,28 @@ body {
   gap: 1rem;
 }
 
-.btn-backup {
+.btn-backup,
+.btn-backup-db {
   color: #fff;
   background: #8e4ec6;
   flex-shrink: 0;
 }
 
-.btn-backup:hover:not(:disabled) {
+.btn-backup:hover:not(:disabled),
+.btn-backup-db:hover:not(:disabled) {
   background: #7b3fb0;
 }
 
-.backup-status {
+.backup-status,
+.db-backup-status {
   margin: 0.75rem 0 0;
   color: #81c995;
   font-size: 0.85rem;
   word-break: break-all;
 }
 
-.backup-status.error {
+.backup-status.error,
+.db-backup-status.error {
   color: #f28b82;
 }
 

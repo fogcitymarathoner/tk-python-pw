@@ -13,6 +13,7 @@ export type TauriSeed = {
   apps?: AppSeed[];
   fail?: Record<string, string>;
   backupPath?: string;
+  wikiBackupPath?: string;
 };
 
 export const defaultE2eSeed: TauriSeed = {
@@ -90,6 +91,8 @@ export function installTauriMock() {
         }
         case "backup_repo":
           return seed.backupPath ?? "C:\\\\backup.zip";
+        case "backup_wiki_db":
+          return seed.wikiBackupPath ?? "C:\\\\Users\\\\marc\\\\backups\\\\wikijs.zip";
         case "plugin:opener|open_url":
           opened.push(String(args.url ?? ""));
           return;

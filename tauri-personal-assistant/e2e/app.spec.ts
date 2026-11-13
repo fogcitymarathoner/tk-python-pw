@@ -14,6 +14,8 @@ test("renders the launcher and all app cards", async ({ page }) => {
   await expect(card(page, "Wiki").getByText("Stopped")).toBeVisible();
   await expect(card(page, "Wiki").getByText("Opens at http://localhost:8899")).toBeVisible();
   await expect(card(page, "Wiki").getByRole("button", { name: "Rebuild" })).toBeHidden();
+  await expect(card(page, "Wiki").getByRole("button", { name: "Backup DB" })).toBeVisible();
+  await expect(card(page, "Personal Data App").getByRole("button", { name: "Backup DB" })).toHaveCount(0);
   await expect(card(page, "Personal Data App").getByRole("button", { name: "Rebuild" })).toBeVisible();
 });
 
@@ -54,16 +56,32 @@ test("toggles the log accordion and shows empty logs", async ({ page }) => {
   await expect(personal.locator(".log-accordion")).not.toHaveAttribute("open");
 });
 
+test("backs up the wiki database from the wiki card", async ({ page }) => {
+  await gotoApp(page);
+  const wiki = card(page, "Wiki");
+  await wiki.getByRole("button", { name: "Backup DB" }).click();
+  await expect(wiki.getByText(/Database backup saved to/)).toBeVisible();
+  await expect(wiki.getByText(/wikijs\.zip/)).toBeVisible();
+  await expect(wiki.getByRole("button", { name: "Backup DB" })).toBeEnabled();
+});
+
+test("shows a wiki database backup error", async ({ page }) => {
+  await gotoApp(page, { ...defaultE2eSeed, fail: { backup_wiki_db: "pg_dump failed" } });
+  await card(page, "Wiki").getByRole("button", { name: "Backup DB" }).click();
+  await expect(page.getByText("pg_dump failed")).toBeVisible();
+  await expect(card(page, "Wiki").locator(".db-backup-status")).toHaveClass(/error/);
+});
+
 test("creates a zip backup and reports a failure", async ({ page }) => {
   await gotoApp(page);
-  await page.getByRole("button", { name: "Backup" }).click();
+  await page.getByRole("button", { name: "Backup", exact: true }).click();
   await expect(page.getByText(/Backup saved to/)).toBeVisible();
   await expect(page.getByText(/repo.zip/)).toBeVisible();
 });
 
 test("shows a backup error", async ({ page }) => {
   await gotoApp(page, { ...defaultE2eSeed, fail: { backup_repo: "disk full" } });
-  await page.getByRole("button", { name: "Backup" }).click();
+  await page.getByRole("button", { name: "Backup", exact: true }).click();
   await expect(page.getByText("disk full")).toBeVisible();
   await expect(page.locator("#backup-status")).toHaveClass(/error/);
 });

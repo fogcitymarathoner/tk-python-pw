@@ -41,6 +41,13 @@ async fn backup_repo() -> Result<String, String> {
         .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+async fn backup_wiki_db() -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(backup::backup_wiki_database)
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -100,7 +107,8 @@ pub fn run() {
             start_app,
             stop_app,
             rebuild_app,
-            backup_repo
+            backup_repo,
+            backup_wiki_db
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

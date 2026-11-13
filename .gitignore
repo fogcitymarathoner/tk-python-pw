@@ -69,3 +69,4 @@ filter_report.txt
 # Mobile icon packs from `tauri icon` (desktop builds do not need these)
 **/src-tauri/icons/android/
 **/src-tauri/icons/ios/
+**/tauri-email-filters/*.xml
