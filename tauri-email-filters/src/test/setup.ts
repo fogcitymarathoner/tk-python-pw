@@ -15,6 +15,7 @@ beforeEach(() => {
   window.alert = jest.fn();
   window.confirm = jest.fn(() => true);
   window.prompt = jest.fn();
+  window.HTMLElement.prototype.scrollIntoView = jest.fn();
   jest.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
   URL.createObjectURL = jest.fn(() => "blob:mock");
   URL.revokeObjectURL = jest.fn();

@@ -15,6 +15,7 @@ import {
   filterEntriesBySearch,
   getFileName,
   insertFilterAt,
+  isEmptyFilter,
   moveFilter,
   parseInsertPosition,
   shouldIgnorePointerDown,
@@ -122,6 +123,20 @@ export default function App() {
     if (cachedSaved) return cachedSaved;
     return "";
   });
+
+  // Track index to auto-scroll to
+  const [scrollToIdx, setScrollToIdx] = useState<number | null>(null);
+
+  // Auto-scroll to target filter card when requested
+  useEffect(() => {
+    if (scrollToIdx !== null) {
+      const el = document.getElementById(`filter-card-${scrollToIdx}`);
+      if (el) {
+        el.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+      }
+      setScrollToIdx(null);
+    }
+  }, [scrollToIdx, entries]);
 
   // Current normalized XML string
   const currentXmlNorm = useMemo(() => {
@@ -521,6 +536,7 @@ export default function App() {
   // Add a brand new empty filter
   const handleAddFilter = () => {
     let targetIdx = 0;
+    const wasSelected = selectedIdx !== null;
 
     if (selectedIdx !== null) {
       targetIdx = selectedIdx;
@@ -540,6 +556,12 @@ export default function App() {
     const newEntry = createEmptyFilter();
     setEntries(insertFilterAt(entries, newEntry, targetIdx));
     setSelectedIdx(targetIdx);
+    if (searchTerm) {
+      setSearchTerm("");
+    }
+    if (!wasSelected) {
+      setScrollToIdx(targetIdx);
+    }
     setStatus("modified");
     setStatusMsg("Unsaved changes present");
   };
@@ -761,7 +783,14 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="entries-list-scroll">
+              <div
+                className="entries-list-scroll"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setSelectedIdx(null);
+                  }
+                }}
+              >
                 {filteredEntries.map(({ entry, originalIdx }) => {
                   const isSelected = selectedIdx === originalIdx;
                   const isDragged = draggedIndex === originalIdx;
@@ -769,6 +798,7 @@ export default function App() {
                   return (
                     <div
                       key={entry.id}
+                      id={`filter-card-${originalIdx}`}
                       className={`entry-card ${isSelected ? "selected" : ""} ${isDragged ? "dragging" : ""}`}
                       onClick={() => setSelectedIdx(originalIdx)}
                       onPointerDown={(e) => handlePointerDown(originalIdx, e)}
@@ -789,6 +819,11 @@ export default function App() {
                           
                           {/* Compact inline summary of the filter rule */}
                           <div className="badges-container-inline">
+                            {isEmptyFilter(entry) && (
+                              <span className="badge badge-empty" title="New / Empty Filter">
+                                New / Empty Filter
+                              </span>
+                            )}
                             {entry.properties.from && (
                               <span className="badge badge-match" title={entry.properties.from}>
                                 From: {entry.properties.from}
@@ -904,6 +939,11 @@ export default function App() {
                           </div>
 
                           <div className="badges-container">
+                            {isEmptyFilter(entry) && (
+                              <span className="badge badge-empty" title="New / Empty Filter">
+                                New / Empty Filter
+                              </span>
+                            )}
                             {entry.properties.from && (
                               <span className="badge badge-match" title={entry.properties.from}>
                                 From: {entry.properties.from}

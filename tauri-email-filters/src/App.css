@@ -480,6 +480,13 @@ body {
   border: 1px solid rgba(248, 81, 73, 0.2);
 }
 
+.badge-empty {
+  background-color: rgba(163, 113, 247, 0.15);
+  color: #d2a8ff;
+  border: 1px dashed rgba(163, 113, 247, 0.4);
+  font-style: italic;
+}
+
 /* Right panel (Editor Form) */
 .editor-panel {
   flex: 1;

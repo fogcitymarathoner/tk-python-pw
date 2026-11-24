@@ -9,6 +9,7 @@ import {
   formatCondition,
   getFileName,
   insertFilterAt,
+  isEmptyFilter,
   moveFilter,
   parseInsertPosition,
   shouldIgnorePointerDown,
@@ -87,6 +88,25 @@ describe("search, property edits, and list mutations", () => {
     expect(moveFilter([alice, bob], 1, "up", 0)?.selectedIdx).toBe(1);
     expect(moveFilter([alice, bob], 0, "down", 0)?.selectedIdx).toBe(1);
     expect(dragReorder([alice, bob], 0, 1).map((e) => e.id)).toEqual([bob.id, alice.id]);
+  });
+
+  it("detects empty filters correctly", () => {
+    const empty = createEmptyFilter();
+    expect(isEmptyFilter(empty)).toBe(true);
+    expect(isEmptyFilter(alice)).toBe(false);
+    expect(isEmptyFilter(bob)).toBe(false);
+    expect(
+      isEmptyFilter({
+        ...empty,
+        properties: { sizeOperator: "s_sl", sizeUnit: "s_smb", from: "" },
+      }),
+    ).toBe(true);
+    expect(
+      isEmptyFilter({
+        ...empty,
+        properties: { sizeOperator: "s_sl", sizeUnit: "s_smb", shouldArchive: "true" },
+      }),
+    ).toBe(false);
   });
 
   it("parses insert positions and pointer-down targets", () => {

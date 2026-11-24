@@ -74,6 +74,13 @@ export function applyPropertyChange(
   return updatedEntries;
 }
 
+export function isEmptyFilter(entry: FilterEntry): boolean {
+  const ignoredKeys = new Set(["sizeOperator", "sizeUnit"]);
+  return !Object.entries(entry.properties).some(
+    ([key, value]) => !ignoredKeys.has(key) && Boolean(value && value.trim()),
+  );
+}
+
 export function createEmptyFilter(now: Date = new Date()): FilterEntry {
   return {
     id: `tag:mail.google.com,2008:filter:z000000${now.getTime()}`,

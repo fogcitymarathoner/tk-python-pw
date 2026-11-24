@@ -391,12 +391,40 @@ describe("App editing and file actions", () => {
     await user.click(screen.getByRole("button", { name: /Open File/ }));
   });
 
-  it("adds a filter in front of the selected card", async () => {
+  it("adds a filter in front of the selected card with empty filter badge and without auto-scroll", async () => {
     const { user } = await renderTauri();
     await user.click(filterCard(2));
     await user.click(screen.getByRole("button", { name: /Add New Filter/ }));
     expect(screen.getByDisplayValue("Greater than (s_sl)")).toBeInTheDocument();
     expect(screen.getByText(/Active Filters:/).textContent).toContain("3");
+    expect(within(filterCard(2)).getByText("New / Empty Filter")).toBeInTheDocument();
+    expect(window.HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("auto-scrolls to newly added filter when no filter is selected", async () => {
+    const { user } = await renderTauri();
+    const scrollContainer = document.querySelector(".entries-list-scroll") as HTMLElement;
+    fireEvent.click(scrollContainer);
+    expect(screen.getByText("No Filter Selected")).toBeInTheDocument();
+
+    (window.prompt as jest.Mock).mockReturnValueOnce("2");
+    await user.click(screen.getByRole("button", { name: /Add New Filter/ }));
+
+    expect(window.prompt).toHaveBeenCalledWith(expect.stringContaining("No filter is selected"));
+    expect(within(filterCard(2)).getByText("New / Empty Filter")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
+    });
+  });
+
+  it("removes empty filter badge once criteria is entered", async () => {
+    const { user } = await renderTauri();
+    await user.click(screen.getByRole("button", { name: /Add New Filter/ }));
+    expect(within(filterCard(1)).getByText("New / Empty Filter")).toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText("Sender address, domain, or query..."), "test@domain.com");
+    expect(within(filterCard(1)).queryByText("New / Empty Filter")).not.toBeInTheDocument();
+    expect(within(filterCard(1)).getByText("From: test@domain.com")).toBeInTheDocument();
   });
 
   it("disables Save and Save As buttons when a newly added filter is removed", async () => {
