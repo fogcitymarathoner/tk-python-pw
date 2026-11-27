@@ -60,11 +60,11 @@ export function renderCard(
       <div class="log-panels">
         <div class="log-panel">
           <div class="log-panel-header">stdout</div>
-          <pre class="log-stdout"></pre>
+          <pre class="log-stdout">(empty)</pre>
         </div>
         <div class="log-panel">
           <div class="log-panel-header">stderr</div>
-          <pre class="log-stderr"></pre>
+          <pre class="log-stderr">(empty)</pre>
         </div>
       </div>
     </details>
@@ -200,6 +200,7 @@ export function mountApp(options: MountAppOptions) {
               (id, open) => {
                 if (open) {
                   openAccordions.add(id);
+                  void refreshStatus();
                 } else {
                   openAccordions.delete(id);
                 }
