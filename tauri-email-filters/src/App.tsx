@@ -13,6 +13,8 @@ import {
   dragReorder,
   duplicateFilterAt,
   filterEntriesBySearch,
+  findDuplicateFilters,
+  formatFilterTitle,
   getFileName,
   insertFilterAt,
   isEmptyFilter,
@@ -20,6 +22,7 @@ import {
   parseInsertPosition,
   shouldIgnorePointerDown,
 } from "./lib/filterLogic";
+import { EmlTesterModal } from "./components/EmlTesterModal";
 import "./App.css";
 
 function getNormalizedXml(headers: string, entries: FilterEntry[], footer: string): string {
@@ -83,6 +86,8 @@ export default function App() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"edit" | "sort">("edit");
+  const [showEmlTester, setShowEmlTester] = useState<boolean>(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [isTauriApp, setIsTauriApp] = useState(true);
 
   const [status, setStatus] = useState<"loading" | "loaded" | "modified" | "saved" | "error">(() => {
@@ -143,9 +148,22 @@ export default function App() {
     return getNormalizedXml(headers, entries, footer);
   }, [headers, entries, footer]);
 
-  // If savedXmlNorm is not set yet, set it once data is loaded
+  // Identify duplicate filter indexes based on identical rule properties
+  const duplicateFilterIndexes = useMemo(() => {
+    const duplicates = findDuplicateFilters(entries);
+    const set = new Set<number>();
+    for (const nums of duplicates.values()) {
+      for (const num of nums) {
+        set.add(num - 1);
+      }
+    }
+    return set;
+  }, [entries]);
+
+  // If savedXmlNorm is not set yet, set it once data is loaded (unless restoring an unsaved session)
   useEffect(() => {
-    if (entries.length > 0 && !savedXmlNorm) {
+    const isRestoredModified = localStorage.getItem("tauri_email_filters_cached_status") === "modified";
+    if (entries.length > 0 && !savedXmlNorm && !isRestoredModified) {
       const norm = getNormalizedXml(headers, entries, footer);
       setSavedXmlNorm(norm);
       localStorage.setItem("tauri_email_filters_saved_xml_norm", norm);
@@ -181,7 +199,7 @@ export default function App() {
   useEffect(() => {
     if (status === "loading" || status === "saved" || status === "error") return;
 
-    if (!hasChanges && status === "modified") {
+    if (!hasChanges && status === "modified" && savedXmlNorm) {
       setStatus("loaded");
       setStatusMsg(
         currentFilePath
@@ -189,7 +207,7 @@ export default function App() {
           : "Natively loaded mailFilters.xml"
       );
     }
-  }, [hasChanges, currentFilePath, status]);
+  }, [hasChanges, currentFilePath, status, savedXmlNorm]);
 
   // Sync the currentFilePath with localStorage
   useEffect(() => {
@@ -208,6 +226,41 @@ export default function App() {
       setIsTauriApp(isTauri);
 
       if (isTauri) {
+        // Check if an initial file was passed via CLI argument
+        let cliFilePath: string | null = null;
+        try {
+          cliFilePath = await invoke<string | null>("get_initial_file_path");
+        } catch (e) {
+          console.warn("Could not check CLI initial file path:", e);
+        }
+
+        // If a CLI file was passed, prioritize loading it directly
+        if (cliFilePath) {
+          try {
+            const content = await invoke<string>("read_filters_from_path", { path: cliFilePath });
+            const parsed = parseXml(content);
+            const norm = getNormalizedXml(parsed.headers, parsed.entries, parsed.footer);
+            await invoke("populate_sqlite", { path: cliFilePath, entries: parsed.entries });
+            setHeaders(parsed.headers);
+            setFooter(parsed.footer);
+            setEntries(parsed.entries);
+            setSavedXmlNorm(norm);
+            setCurrentFilePath(cliFilePath);
+            localStorage.setItem("tauri_email_filters_saved_xml_norm", norm);
+            if (parsed.entries.length > 0) {
+              setSelectedIdx(0);
+            }
+            setStatus("loaded");
+            setStatusMsg(`Loaded ${getFileName(cliFilePath)}`);
+            return;
+          } catch (err: any) {
+            console.error("Failed to load CLI specified file:", err);
+            setStatus("error");
+            setStatusMsg(`Failed to load ${getFileName(cliFilePath)}: ${err}`);
+            return;
+          }
+        }
+
         const storedPath = localStorage.getItem("tauri_email_filters_current_path");
         const hasCache = localStorage.getItem("tauri_email_filters_cached_xml") !== null;
         const cachedStatus = localStorage.getItem("tauri_email_filters_cached_status");
@@ -220,6 +273,7 @@ export default function App() {
               const content = await invoke<string>("read_filters_from_path", { path: storedPath });
               const parsed = parseXml(content);
               const norm = getNormalizedXml(parsed.headers, parsed.entries, parsed.footer);
+              await invoke("populate_sqlite", { path: storedPath, entries: parsed.entries });
               setHeaders(parsed.headers);
               setFooter(parsed.footer);
               setEntries(parsed.entries);
@@ -234,6 +288,7 @@ export default function App() {
               const content = await invoke<string>("read_filters_file");
               const parsed = parseXml(content);
               const norm = getNormalizedXml(parsed.headers, parsed.entries, parsed.footer);
+              await invoke("populate_sqlite", { path: null, entries: parsed.entries });
               setHeaders(parsed.headers);
               setFooter(parsed.footer);
               setEntries(parsed.entries);
@@ -280,15 +335,41 @@ export default function App() {
     };
   }, []);
 
+  // Listen for Escape key to close edit modal or EML tester modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (isEditModalOpen) {
+          setIsEditModalOpen(false);
+        } else if (showEmlTester) {
+          setShowEmlTester(false);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isEditModalOpen, showEmlTester]);
+
   // Save the modified filters XML file
   const handleSave = async () => {
     try {
       setStatus("loading");
       setStatusMsg("Saving filter data...");
-      const serialized = serializeXml(headers, entries, footer);
-      const norm = getNormalizedXml(headers, entries, footer);
 
       if (isTauriApp) {
+        // 1. Populate the SQLite database with the current filter entries
+        await invoke("populate_sqlite", { path: currentFilePath, entries });
+
+        // 2. Export from SQLite excluding the hash field (detects duplicate filters via indexed hash field)
+        const exported = await invoke<FilterEntry[]>("export_sqlite", { path: currentFilePath });
+        const exportedEntries = Array.isArray(exported) ? exported : entries;
+
+        // 3. Export to XML
+        const serialized = serializeXml(headers, exportedEntries, footer);
+        const norm = getNormalizedXml(headers, exportedEntries, footer);
+
         if (currentFilePath) {
           await invoke("write_filters_to_path", { path: currentFilePath, content: serialized });
           setSavedXmlNorm(norm);
@@ -311,7 +392,17 @@ export default function App() {
           setStatusMsg(currentFilePath ? `Active: ${getFileName(currentFilePath)}` : "Natively loaded mailFilters.xml");
         }, 3000);
       } else {
-        // Fallback file download for browser
+        // Fallback for browser preview mode
+        const duplicates = findDuplicateFilters(entries);
+        if (duplicates.size > 0) {
+          const detail = Array.from(duplicates.entries())
+            .map(([_, nums]) => `Filter(s) #${nums.join(", ")}`)
+            .join("; ");
+          throw new Error(`Duplicate filters detected! All filters must be distinct to save.\n${detail}`);
+        }
+
+        const serialized = serializeXml(headers, entries, footer);
+        const norm = getNormalizedXml(headers, entries, footer);
         const blob = new Blob([serialized], { type: "application/xml" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -337,7 +428,11 @@ export default function App() {
     } catch (err: any) {
       console.error("Save error:", err);
       setStatus("error");
-      setStatusMsg(`Failed to save: ${err}`);
+      const errMsg = typeof err === "string" ? err : err?.message || String(err);
+      setStatusMsg(`Failed to save: ${errMsg}`);
+      setToastMsg(`Failed to save: ${errMsg}`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 5000);
     }
   };
 
@@ -369,6 +464,7 @@ export default function App() {
       
       const parsed = parseXml(content);
       const norm = getNormalizedXml(parsed.headers, parsed.entries, parsed.footer);
+      await invoke("populate_sqlite", { path: selectedPath, entries: parsed.entries });
       setHeaders(parsed.headers);
       setFooter(parsed.footer);
       setEntries(parsed.entries);
@@ -393,8 +489,6 @@ export default function App() {
   const handleSaveAs = async () => {
     try {
       const defaultName = currentFilePath ? getFileName(currentFilePath) : "mailFilters.xml";
-      const serialized = serializeXml(headers, entries, footer);
-      const norm = getNormalizedXml(headers, entries, footer);
 
       if (isTauriApp) {
         setStatus("loading");
@@ -407,6 +501,16 @@ export default function App() {
         }
 
         setStatusMsg(`Saving to ${getFileName(savePath)}...`);
+        // 1. Populate the SQLite database at the target save path
+        await invoke("populate_sqlite", { path: savePath, entries });
+
+        // 2. Export from SQLite excluding the hash field (validates all filters distinct)
+        const exported = await invoke<FilterEntry[]>("export_sqlite", { path: savePath });
+        const exportedEntries = Array.isArray(exported) ? exported : entries;
+
+        const serialized = serializeXml(headers, exportedEntries, footer);
+        const norm = getNormalizedXml(headers, exportedEntries, footer);
+
         await invoke("write_filters_to_path", { path: savePath, content: serialized });
         
         setSavedXmlNorm(norm);
@@ -422,6 +526,16 @@ export default function App() {
           setStatusMsg(`Active: ${getFileName(savePath)}`);
         }, 3000);
       } else {
+        const duplicates = findDuplicateFilters(entries);
+        if (duplicates.size > 0) {
+          const detail = Array.from(duplicates.entries())
+            .map(([_, nums]) => `Filter(s) #${nums.join(", ")}`)
+            .join("; ");
+          throw new Error(`Duplicate filters detected! All filters must be distinct to save.\n${detail}`);
+        }
+
+        const serialized = serializeXml(headers, entries, footer);
+        const norm = getNormalizedXml(headers, entries, footer);
         const blob = new Blob([serialized], { type: "application/xml" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -447,7 +561,11 @@ export default function App() {
     } catch (err: any) {
       console.error("Save As error:", err);
       setStatus("error");
-      setStatusMsg(`Failed to save: ${err}`);
+      const errMsg = typeof err === "string" ? err : err?.message || String(err);
+      setStatusMsg(`Failed to save: ${errMsg}`);
+      setToastMsg(`Save failed: ${errMsg}`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 5000);
     }
   };
 
@@ -501,11 +619,14 @@ export default function App() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const content = event.target?.result as string;
       if (content) {
         try {
           const parsed = parseXml(content);
+          if (isTauriApp) {
+            await invoke("populate_sqlite", { path: file.name, entries: parsed.entries });
+          }
           setHeaders(parsed.headers);
           setFooter(parsed.footer);
           setEntries(parsed.entries);
@@ -556,6 +677,7 @@ export default function App() {
     const newEntry = createEmptyFilter();
     setEntries(insertFilterAt(entries, newEntry, targetIdx));
     setSelectedIdx(targetIdx);
+    setIsEditModalOpen(true);
     if (searchTerm) {
       setSearchTerm("");
     }
@@ -572,6 +694,7 @@ export default function App() {
     const result = duplicateFilterAt(entries, idx);
     setEntries(result.entries);
     setSelectedIdx(result.selectedIdx);
+    setIsEditModalOpen(true);
     setStatus("modified");
     setStatusMsg("Unsaved changes present");
   };
@@ -581,6 +704,9 @@ export default function App() {
     e.stopPropagation();
     if (!confirm("Are you sure you want to delete this filter entry?")) return;
 
+    if (idx === selectedIdx) {
+      setIsEditModalOpen(false);
+    }
     const result = deleteFilterAt(entries, idx, selectedIdx);
     setEntries(result.entries);
     setSelectedIdx(result.selectedIdx);
@@ -658,12 +784,26 @@ export default function App() {
       ? "mailFilters.xml"
       : null;
 
+  const filterTitle = formatFilterTitle(activeFileName);
+
+  // Synchronize browser document title and native desktop window title bar
+  useEffect(() => {
+    document.title = filterTitle;
+    const isTauri = typeof window !== "undefined" && Boolean((window as any).__TAURI_INTERNALS__);
+    if (isTauri) {
+      const res = invoke("set_window_title", { title: filterTitle });
+      if (res && typeof (res as any).catch === "function") {
+        (res as Promise<void>).catch(() => {});
+      }
+    }
+  }, [filterTitle]);
+
   return (
     <div className={`app-container ${draggedIndex !== null ? "dragging-active" : ""}`}>
       {/* Top Header Panel */}
       <header className="app-header">
         <div className="header-title-section">
-          <h1>Gmail Filters Editor</h1>
+          <h1>{filterTitle}</h1>
           <span
             className={`status-badge ${status === "saved" ? "success" : status === "modified" ? "warning" : ""}`}
             title={currentFilePath || undefined}
@@ -720,6 +860,13 @@ export default function App() {
 
               <button className="btn" onClick={handleGenerateReport}>
                 📋 Copy Report
+              </button>
+              <button
+                className="btn"
+                onClick={() => setShowEmlTester(true)}
+                title="Test an .eml email file against your filters"
+              >
+                🧪 Test Email...
               </button>
               <button className="btn btn-accent" onClick={handleAddFilter}>
                 ➕ Add New Filter
@@ -788,6 +935,7 @@ export default function App() {
                 onClick={(e) => {
                   if (e.target === e.currentTarget) {
                     setSelectedIdx(null);
+                    setIsEditModalOpen(false);
                   }
                 }}
               >
@@ -800,7 +948,10 @@ export default function App() {
                       key={entry.id}
                       id={`filter-card-${originalIdx}`}
                       className={`entry-card ${isSelected ? "selected" : ""} ${isDragged ? "dragging" : ""}`}
-                      onClick={() => setSelectedIdx(originalIdx)}
+                      onClick={() => {
+                        setSelectedIdx(originalIdx);
+                        setIsEditModalOpen(true);
+                      }}
                       onPointerDown={(e) => handlePointerDown(originalIdx, e)}
                       onPointerUp={handlePointerUp}
                       onPointerEnter={() => handlePointerEnter(originalIdx)}
@@ -822,6 +973,11 @@ export default function App() {
                             {isEmptyFilter(entry) && (
                               <span className="badge badge-empty" title="New / Empty Filter">
                                 New / Empty Filter
+                              </span>
+                            )}
+                            {duplicateFilterIndexes.has(originalIdx) && (
+                              <span className="badge badge-duplicate" title="Duplicate filter: identical matching criteria and actions to another filter">
+                                ⚠️ Duplicate Filter
                               </span>
                             )}
                             {entry.properties.from && (
@@ -865,6 +1021,17 @@ export default function App() {
 
                           <div className="entry-actions">
                             <button
+                              className="icon-btn edit"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedIdx(originalIdx);
+                                setIsEditModalOpen(true);
+                              }}
+                              title="Edit Filter"
+                            >
+                              ✏️
+                            </button>
+                            <button
                               className="icon-btn"
                               disabled={originalIdx === 0}
                               onClick={(e) => moveUp(originalIdx, e)}
@@ -906,6 +1073,17 @@ export default function App() {
                             </span>
                             <div className="entry-actions">
                               <button
+                                className="icon-btn edit"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedIdx(originalIdx);
+                                  setIsEditModalOpen(true);
+                                }}
+                                title="Edit Filter"
+                              >
+                                ✏️
+                              </button>
+                              <button
                                 className="icon-btn"
                                 disabled={originalIdx === 0}
                                 onClick={(e) => moveUp(originalIdx, e)}
@@ -942,6 +1120,11 @@ export default function App() {
                             {isEmptyFilter(entry) && (
                               <span className="badge badge-empty" title="New / Empty Filter">
                                 New / Empty Filter
+                              </span>
+                            )}
+                            {duplicateFilterIndexes.has(originalIdx) && (
+                              <span className="badge badge-duplicate" title="Duplicate filter: identical matching criteria and actions to another filter">
+                                ⚠️ Duplicate Filter
                               </span>
                             )}
                             {entry.properties.from && (
@@ -990,176 +1173,195 @@ export default function App() {
               </div>
             </section>
 
-            {/* Right workspace: Property Form Editor (Only in Edit mode) */}
-            {viewMode === "edit" && (
-              <section className="editor-panel">
-                {selectedEntry ? (
-                  <>
-                    <div className="editor-header">
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
-                        <div>
-                          <h2>Filter Configuration</h2>
-                          <p style={{ wordBreak: "break-all" }}>ID: {selectedEntry.id}</p>
-                          <p>Last Evaluated/Updated: {selectedEntry.updated}</p>
-                        </div>
-                        <button
-                          className="btn btn-accent"
-                          onClick={() => selectedIdx !== null && handleDuplicateFilter(selectedIdx)}
-                          title="Duplicate this filter directly below"
-                        >
-                          📄 Duplicate Filter
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="editor-scroll">
-                      <div className="form-grid">
-                        {/* Text inputs matching specified text fields */}
-                        <div className="form-field full-width">
-                          <label className="form-label">From Condition</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="Sender address, domain, or query..."
-                            value={selectedEntry.properties.from || ""}
-                            onChange={(e) => handlePropertyChange("from", e.target.value)}
-                          />
-                        </div>
-
-                        <div className="form-field full-width">
-                          <label className="form-label">To Condition</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="Recipient email address..."
-                            value={selectedEntry.properties.to || ""}
-                            onChange={(e) => handlePropertyChange("to", e.target.value)}
-                          />
-                        </div>
-
-                        <div className="form-field full-width">
-                          <label className="form-label">Subject</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="Email subject keywords..."
-                            value={selectedEntry.properties.subject || ""}
-                            onChange={(e) => handlePropertyChange("subject", e.target.value)}
-                          />
-                        </div>
-
-                        <div className="form-field full-width">
-                          <label className="form-label">Apply Label</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="Gmail folder or label name..."
-                            value={selectedEntry.properties.label || ""}
-                            onChange={(e) => handlePropertyChange("label", e.target.value)}
-                          />
-                        </div>
-
-                        <div className="form-field full-width">
-                          <label className="form-label">Forward To Address</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="Forwarding email address..."
-                            value={selectedEntry.properties.forwardTo || ""}
-                            onChange={(e) => handlePropertyChange("forwardTo", e.target.value)}
-                          />
-                        </div>
-
-                        <div className="form-field">
-                          <label className="form-label">Size Operator</label>
-                          <select
-                            className="form-select"
-                            value={selectedEntry.properties.sizeOperator || ""}
-                            onChange={(e) => handlePropertyChange("sizeOperator", e.target.value)}
-                          >
-                            <option value="">(None)</option>
-                            <option value="s_sl">Greater than (s_sl)</option>
-                            <option value="s_ss">Less than (s_ss)</option>
-                          </select>
-                        </div>
-
-                        <div className="form-field">
-                          <label className="form-label">Size Unit</label>
-                          <select
-                            className="form-select"
-                            value={selectedEntry.properties.sizeUnit || ""}
-                            onChange={(e) => handlePropertyChange("sizeUnit", e.target.value)}
-                          >
-                            <option value="">(None)</option>
-                            <option value="s_smb">Megabytes (s_smb)</option>
-                            <option value="s_skb">Kilobytes (s_skb)</option>
-                            <option value="s_sb">Bytes (s_sb)</option>
-                          </select>
-                        </div>
-
-                        {/* Grid for Google Mail filter actions (Checkboxes/Booleans) */}
-                        <div className="checkbox-grid">
-                          <label className="checkbox-field">
-                            <input
-                              type="checkbox"
-                              checked={selectedEntry.properties.shouldArchive === "true"}
-                              onChange={(e) =>
-                                handlePropertyChange("shouldArchive", e.target.checked ? "true" : "")
-                              }
-                            />
-                            <span className="checkbox-label">Skip the Inbox (Archive)</span>
-                          </label>
-
-                          <label className="checkbox-field">
-                            <input
-                              type="checkbox"
-                              checked={selectedEntry.properties.shouldMarkAsRead === "true"}
-                              onChange={(e) =>
-                                handlePropertyChange("shouldMarkAsRead", e.target.checked ? "true" : "")
-                              }
-                            />
-                            <span className="checkbox-label">Mark as Read</span>
-                          </label>
-
-                          <label className="checkbox-field">
-                            <input
-                              type="checkbox"
-                              checked={selectedEntry.properties.shouldNeverMarkAsImportant === "true"}
-                              onChange={(e) =>
-                                handlePropertyChange(
-                                  "shouldNeverMarkAsImportant",
-                                  e.target.checked ? "true" : ""
-                                )
-                              }
-                            />
-                            <span className="checkbox-label">Never mark as important</span>
-                          </label>
-
-                          <label className="checkbox-field">
-                            <input
-                              type="checkbox"
-                              checked={selectedEntry.properties.shouldTrash === "true"}
-                              onChange={(e) =>
-                                handlePropertyChange("shouldTrash", e.target.checked ? "true" : "")
-                              }
-                            />
-                            <span className="checkbox-label">Delete it (Trash)</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="empty-state">
-                    <h3>No Filter Selected</h3>
-                    <p>Select a filter card from the left panel to modify its rule attributes.</p>
-                  </div>
-                )}
-              </section>
-            )}
           </>
         )}
       </main>
+
+      {/* Centered Filter Edit Modal Popup */}
+      {selectedEntry && isEditModalOpen && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setIsEditModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="modal-container edit-filter-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div className="modal-title-row">
+                <span className="modal-icon">✏️</span>
+                <h2>Filter #{selectedIdx !== null ? selectedIdx + 1 : ""} Configuration</h2>
+              </div>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <button
+                  className="btn btn-sm btn-accent"
+                  onClick={() => selectedIdx !== null && handleDuplicateFilter(selectedIdx)}
+                  title="Duplicate this filter directly below"
+                >
+                  📄 Duplicate Filter
+                </button>
+                <button
+                  className="icon-btn close-btn"
+                  onClick={() => setIsEditModalOpen(false)}
+                  title="Close"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="modal-content edit-modal-content">
+              <div className="filter-metadata">
+                <span className="metadata-id">ID: {selectedEntry.id}</span>
+                <span className="metadata-updated">Last Evaluated/Updated: {selectedEntry.updated}</span>
+              </div>
+
+              <div className="form-grid">
+                {/* Text inputs matching specified text fields */}
+                <div className="form-field full-width">
+                  <label className="form-label">From Condition</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Sender address, domain, or query..."
+                    value={selectedEntry.properties.from || ""}
+                    onChange={(e) => handlePropertyChange("from", e.target.value)}
+                  />
+                </div>
+
+                <div className="form-field full-width">
+                  <label className="form-label">To Condition</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Recipient email address..."
+                    value={selectedEntry.properties.to || ""}
+                    onChange={(e) => handlePropertyChange("to", e.target.value)}
+                  />
+                </div>
+
+                <div className="form-field full-width">
+                  <label className="form-label">Subject</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Email subject keywords..."
+                    value={selectedEntry.properties.subject || ""}
+                    onChange={(e) => handlePropertyChange("subject", e.target.value)}
+                  />
+                </div>
+
+                <div className="form-field full-width">
+                  <label className="form-label">Apply Label</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Gmail folder or label name..."
+                    value={selectedEntry.properties.label || ""}
+                    onChange={(e) => handlePropertyChange("label", e.target.value)}
+                  />
+                </div>
+
+                <div className="form-field full-width">
+                  <label className="form-label">Forward To Address</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Forwarding email address..."
+                    value={selectedEntry.properties.forwardTo || ""}
+                    onChange={(e) => handlePropertyChange("forwardTo", e.target.value)}
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label className="form-label">Size Operator</label>
+                  <select
+                    className="form-select"
+                    value={selectedEntry.properties.sizeOperator || ""}
+                    onChange={(e) => handlePropertyChange("sizeOperator", e.target.value)}
+                  >
+                    <option value="">(None)</option>
+                    <option value="s_sl">Greater than (s_sl)</option>
+                    <option value="s_ss">Less than (s_ss)</option>
+                  </select>
+                </div>
+
+                <div className="form-field">
+                  <label className="form-label">Size Unit</label>
+                  <select
+                    className="form-select"
+                    value={selectedEntry.properties.sizeUnit || ""}
+                    onChange={(e) => handlePropertyChange("sizeUnit", e.target.value)}
+                  >
+                    <option value="">(None)</option>
+                    <option value="s_smb">Megabytes (s_smb)</option>
+                    <option value="s_skb">Kilobytes (s_skb)</option>
+                    <option value="s_sb">Bytes (s_sb)</option>
+                  </select>
+                </div>
+
+                {/* Grid for Google Mail filter actions (Checkboxes/Booleans) */}
+                <div className="checkbox-grid">
+                  <label className="checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={selectedEntry.properties.shouldArchive === "true"}
+                      onChange={(e) =>
+                        handlePropertyChange("shouldArchive", e.target.checked ? "true" : "")
+                      }
+                    />
+                    <span className="checkbox-label">Skip the Inbox (Archive)</span>
+                  </label>
+
+                  <label className="checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={selectedEntry.properties.shouldMarkAsRead === "true"}
+                      onChange={(e) =>
+                        handlePropertyChange("shouldMarkAsRead", e.target.checked ? "true" : "")
+                      }
+                    />
+                    <span className="checkbox-label">Mark as Read</span>
+                  </label>
+
+                  <label className="checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={selectedEntry.properties.shouldNeverMarkAsImportant === "true"}
+                      onChange={(e) =>
+                        handlePropertyChange(
+                          "shouldNeverMarkAsImportant",
+                          e.target.checked ? "true" : ""
+                        )
+                      }
+                    />
+                    <span className="checkbox-label">Never mark as important</span>
+                  </label>
+
+                  <label className="checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={selectedEntry.properties.shouldTrash === "true"}
+                      onChange={(e) =>
+                        handlePropertyChange("shouldTrash", e.target.checked ? "true" : "")
+                      }
+                    />
+                    <span className="checkbox-label">Delete it (Trash)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={() => setIsEditModalOpen(false)}>
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating Save/Copy Confirmation Toast Notification (For XML saves only) */}
       {showToast && (
@@ -1171,6 +1373,18 @@ export default function App() {
           <p className="toast-msg">{toastMsg}</p>
         </div>
       )}
+
+      {/* EML Filter Tester Modal */}
+      <EmlTesterModal
+        isOpen={showEmlTester}
+        onClose={() => setShowEmlTester(false)}
+        entries={entries}
+        isTauriApp={isTauriApp}
+        onSelectFilter={(idx) => {
+          setSelectedIdx(idx);
+          setScrollToIdx(idx);
+        }}
+      />
 
       {/* Bottom Workspace Status Bar */}
       <footer className="status-bar">

@@ -5,6 +5,22 @@ export function getFileName(path: string): string {
   return parts[parts.length - 1];
 }
 
+/**
+ * Extracts the suffix from a filter file following the pattern mailFiltersXXX.xml
+ * and formats it as "Filter XXX".
+ */
+export function formatFilterTitle(filePathOrName: string | null | undefined): string {
+  if (!filePathOrName) return "Filter";
+  const fileName = getFileName(filePathOrName);
+  const match = fileName.match(/^mailfilters?(.*?)(?:\.xml)?$/i);
+  if (match) {
+    const suffix = match[1].trim();
+    return suffix ? `Filter ${suffix}` : "Filter";
+  }
+  const baseName = fileName.replace(/\.xml$/i, "").trim();
+  return baseName ? `Filter ${baseName}` : "Filter";
+}
+
 export function formatCondition(val: string): string {
   if (!val) return "";
   if (/[.\-@\[\]"\s]/.test(val)) {
@@ -188,3 +204,37 @@ export function shouldIgnorePointerDown(target: HTMLElement): boolean {
     Boolean(target.closest(".icon-btn"))
   );
 }
+
+export function computeFilterHash(properties: Record<string, string>): string {
+  const parts: string[] = [];
+  const sortedKeys = Object.keys(properties).sort();
+  for (const k of sortedKeys) {
+    const val = properties[k]?.trim();
+    if (val) {
+      parts.push(`${k}=${val}`);
+    }
+  }
+  return parts.join(";");
+}
+
+export function findDuplicateFilters(entries: FilterEntry[]): Map<string, number[]> {
+  const hashMap = new Map<string, number[]>();
+  entries.forEach((entry, idx) => {
+    const hash = computeFilterHash(entry.properties);
+    const existing = hashMap.get(hash);
+    if (existing) {
+      existing.push(idx + 1);
+    } else {
+      hashMap.set(hash, [idx + 1]);
+    }
+  });
+
+  const duplicates = new Map<string, number[]>();
+  for (const [hash, indexes] of hashMap.entries()) {
+    if (indexes.length > 1) {
+      duplicates.set(hash, indexes);
+    }
+  }
+  return duplicates;
+}
+

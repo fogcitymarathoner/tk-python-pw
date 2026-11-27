@@ -118,18 +118,23 @@ export function updateCard(card: HTMLElement, app: AppStatus, openUrl: OpenUrlFn
   }
 }
 
-export function updateLogs(card: HTMLElement, logs: AppLogs) {
+export function updateLogs(card: HTMLElement, logs: AppLogs, forceStick = false) {
   const stdoutEl = card.querySelector(".log-stdout") as HTMLElement;
   const stderrEl = card.querySelector(".log-stderr") as HTMLElement;
   const accordion = card.querySelector(".log-accordion") as HTMLDetailsElement;
 
-  const shouldStick = shouldStickLogsToBottom(stdoutEl, accordion.open);
+  const shouldStickStdout = forceStick || shouldStickLogsToBottom(stdoutEl, accordion.open);
+  const shouldStickStderr = forceStick || shouldStickLogsToBottom(stderrEl, accordion.open);
 
-  stdoutEl.textContent = logs.stdout || "(empty)";
-  stderrEl.textContent = logs.stderr || "(empty)";
+  const stdout = logs.stdout || "(empty)";
+  const stderr = logs.stderr || "(empty)";
+  if (stdoutEl.textContent !== stdout) stdoutEl.textContent = stdout;
+  if (stderrEl.textContent !== stderr) stderrEl.textContent = stderr;
 
-  if (shouldStick) {
+  if (shouldStickStdout) {
     stdoutEl.scrollTop = stdoutEl.scrollHeight;
+  }
+  if (shouldStickStderr) {
     stderrEl.scrollTop = stderrEl.scrollHeight;
   }
 }
@@ -164,43 +169,72 @@ export function mountApp(options: MountAppOptions) {
   const appsContainer = doc.querySelector("#apps") as HTMLElement | null;
   const cardElements = new Map<string, HTMLElement>();
   const openAccordions = new Set<string>();
+  let currentRefresh: Promise<void> | null = null;
+  let queuedRefresh = false;
 
   const showAppError = (appId: string, message: string) => {
     showError(cardElements.get(appId), message, errorHideMs, timers.setTimeout);
   };
 
-  const refreshStatus = async () => {
+  const refreshStatus = async (): Promise<void> => {
     if (!appsContainer) return;
-    const apps = (await options.invoke("get_all_status")) as AppStatus[];
+    if (currentRefresh) {
+      queuedRefresh = true;
+      return currentRefresh;
+    }
 
-    for (const app of apps) {
-      let card = cardElements.get(app.id);
-      if (!card) {
-        card = renderCard(
-          app,
-          icons,
-          (id) => void startApp(id),
-          (id) => void stopApp(id),
-          (id) => void rebuildApp(id),
-          (id, open) => {
-            if (open) {
-              openAccordions.add(id);
-            } else {
-              openAccordions.delete(id);
-            }
-          },
-          (id) => void backupWikiDb(id),
+    currentRefresh = (async () => {
+      do {
+        queuedRefresh = false;
+        const apps = (await options.invoke("get_all_status")) as AppStatus[];
+
+        for (const app of apps) {
+          let card = cardElements.get(app.id);
+          if (!card) {
+            card = renderCard(
+              app,
+              icons,
+              (id) => void startApp(id),
+              (id) => void stopApp(id),
+              (id) => void rebuildApp(id),
+              (id, open) => {
+                if (open) {
+                  openAccordions.add(id);
+                } else {
+                  openAccordions.delete(id);
+                }
+              },
+              (id) => void backupWikiDb(id),
+            );
+            cardElements.set(app.id, card);
+            appsContainer.appendChild(card);
+          }
+          updateCard(card, app, options.openUrl);
+
+          const accordion = card.querySelector(".log-accordion") as HTMLDetailsElement;
+          accordion.open = openAccordions.has(app.id);
+        }
+
+        const appsWithOpenLogs = apps.filter((app) => openAccordions.has(app.id));
+        const appLogs = await Promise.all(
+          appsWithOpenLogs.map(async (app) => ({
+            app,
+            logs: (await options.invoke("get_app_logs", { appId: app.id })) as AppLogs,
+          })),
         );
-        cardElements.set(app.id, card);
-        appsContainer.appendChild(card);
-      }
-      updateCard(card, app, options.openUrl);
+        for (const { app, logs } of appLogs) {
+          const card = cardElements.get(app.id);
+          if (card) {
+            updateLogs(card, logs, app.rebuilding);
+          }
+        }
+      } while (queuedRefresh);
+    })();
 
-      const logs = (await options.invoke("get_app_logs", { appId: app.id })) as AppLogs;
-      updateLogs(card, logs);
-
-      const accordion = card.querySelector(".log-accordion") as HTMLDetailsElement;
-      accordion.open = openAccordions.has(app.id);
+    try {
+      await currentRefresh;
+    } finally {
+      currentRefresh = null;
     }
   };
 
@@ -280,6 +314,13 @@ export function mountApp(options: MountAppOptions) {
     void backupRepo();
   });
 
+  const refreshOnFocus = () => void refreshStatus();
+  const refreshOnVisibility = () => {
+    if (doc.visibilityState === "visible") void refreshStatus();
+  };
+  doc.defaultView?.addEventListener("focus", refreshOnFocus);
+  doc.addEventListener("visibilitychange", refreshOnVisibility);
+
   void refreshStatus();
   const intervalId =
     refreshIntervalMs > 0
@@ -301,6 +342,8 @@ export function mountApp(options: MountAppOptions) {
       if (intervalId !== undefined) {
         timers.clearInterval(intervalId);
       }
+      doc.defaultView?.removeEventListener("focus", refreshOnFocus);
+      doc.removeEventListener("visibilitychange", refreshOnVisibility);
     },
   };
 }

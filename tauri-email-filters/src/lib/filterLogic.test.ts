@@ -1,12 +1,15 @@
 import {
   applyPropertyChange,
   buildFilterReport,
+  computeFilterHash,
   createEmptyFilter,
   deleteFilterAt,
   dragReorder,
   duplicateFilterAt,
   filterEntriesBySearch,
+  findDuplicateFilters,
   formatCondition,
+  formatFilterTitle,
   getFileName,
   insertFilterAt,
   isEmptyFilter,
@@ -21,6 +24,19 @@ describe("getFileName", () => {
     expect(getFileName("/tmp/mailFilters.xml")).toBe("mailFilters.xml");
     expect(getFileName("C:\\\\Users\\\\marc\\\\filters.xml")).toBe("filters.xml");
     expect(getFileName("alone.xml")).toBe("alone.xml");
+  });
+});
+
+describe("formatFilterTitle", () => {
+  it("formats mailFiltersXXX.xml as Filter XXX", () => {
+    expect(formatFilterTitle("mailFiltersFog.xml")).toBe("Filter Fog");
+    expect(formatFilterTitle("mailFiltersRRG.xml")).toBe("Filter RRG");
+    expect(formatFilterTitle("mailFiltersRrg.xml")).toBe("Filter Rrg");
+    expect(formatFilterTitle("C:\\\\data\\\\mailFiltersWork.xml")).toBe("Filter Work");
+    expect(formatFilterTitle("/home/user/mailfiltersPersonal.xml")).toBe("Filter Personal");
+    expect(formatFilterTitle("mailFilters.xml")).toBe("Filter");
+    expect(formatFilterTitle("custom.xml")).toBe("Filter custom");
+    expect(formatFilterTitle(null)).toBe("Filter");
   });
 });
 
@@ -134,5 +150,25 @@ describe("search, property edits, and list mutations", () => {
     iconWrap.appendChild(iconInner);
     expect(shouldIgnorePointerDown(iconInner)).toBe(true);
     expect(shouldIgnorePointerDown(document.createElement("div"))).toBe(false);
+  });
+});
+
+describe("hash and duplicate filter detection", () => {
+  it("computes canonical hashes ignoring whitespace and key order", () => {
+    const hash1 = computeFilterHash({ to: "user@example.com", from: "sender@example.com", empty: "" });
+    const hash2 = computeFilterHash({ from: " sender@example.com ", to: "user@example.com" });
+    expect(hash1).toBe("from=sender@example.com;to=user@example.com");
+    expect(hash1).toBe(hash2);
+  });
+
+  it("finds duplicate filters by identical property hashes", () => {
+    const dupeBob = { ...bob, id: "bob-dupe" };
+    const distinct = findDuplicateFilters([alice, bob]);
+    expect(distinct.size).toBe(0);
+
+    const dupes = findDuplicateFilters([alice, bob, dupeBob]);
+    expect(dupes.size).toBe(1);
+    const indexes = Array.from(dupes.values())[0];
+    expect(indexes).toEqual([2, 3]);
   });
 });

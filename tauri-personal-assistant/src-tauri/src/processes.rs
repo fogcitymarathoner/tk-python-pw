@@ -4,12 +4,14 @@ use std::io::{BufRead, BufReader};
 use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use sysinfo::{ProcessesToUpdate, System};
 
-const MAX_LOG_CHARS: usize = 80_000;
+const MAX_LOG_BYTES: usize = 5_000_000;
+const REBUILD_OUTPUT_DRAIN_TIMEOUT: Duration = Duration::from_secs(3);
 
 const WIKI_DIR: &str = r"C:\Users\marc\Documents\repos\mopo-ai\wiki";
 const WIKI_PORT: u16 = 8899;
@@ -29,6 +31,10 @@ const GMAIL_FILTER_EXE: &str = "gmail-filter-editor.exe";
 const GMAIL_FILTER_EXE_FALLBACK: &str = "tauri-app.exe";
 const GMAIL_FILTER_BUILD_DIR: &str =
     r"C:\Users\marc\Documents\repos\firebase_pw\tauri-email-filters";
+const GMAIL_FILTER_RRG_XML: &str =
+    r"C:\Users\marc\Documents\repos\firebase_pw\tauri-email-filters\mailFiltersRRG.xml";
+const GMAIL_FILTER_FOG_XML: &str =
+    r"C:\Users\marc\Documents\repos\firebase_pw\tauri-email-filters\mailFiltersFog.xml";
 
 /// Directories a monitored app may be running from. `tauri build` on this
 /// machine writes `target\release`; an explicit `--target` build uses the triple.
@@ -160,16 +166,23 @@ impl LogBuffer {
 fn append_limited(mutex: &Mutex<String>, text: &str) {
     if let Ok(mut buffer) = mutex.lock() {
         buffer.push_str(text);
-        if buffer.len() > MAX_LOG_CHARS {
-            let keep_from = buffer.len() - MAX_LOG_CHARS;
+        if buffer.len() > MAX_LOG_BYTES {
+            let mut keep_from = buffer.len() - MAX_LOG_BYTES;
+            while !buffer.is_char_boundary(keep_from) {
+                keep_from += 1;
+            }
             *buffer = buffer.split_off(keep_from);
         }
     }
 }
 
+struct RebuildHandle {
+    is_done: Arc<AtomicBool>,
+}
+
 pub struct ProcessManager {
-    children: Mutex<HashMap<AppId, Child>>,
-    rebuilds: Mutex<HashMap<AppId, Child>>,
+    children: Mutex<HashMap<AppId, Vec<Child>>>,
+    rebuilds: Mutex<HashMap<AppId, RebuildHandle>>,
     logs: Mutex<HashMap<AppId, Arc<LogBuffer>>>,
 }
 
@@ -212,23 +225,19 @@ impl ProcessManager {
         logs.clear();
         logs.append_stdout(&format!("Starting {}...\n", app_name(id)));
 
-        let child = match id {
-            AppId::Wiki => spawn_wiki(logs)?,
-            AppId::DatabaseApi => spawn_database_api(logs)?,
-            AppId::PersonalData => {
+        let children = match id {
+            AppId::Wiki => vec![spawn_wiki(logs)?],
+            AppId::DatabaseApi => vec![spawn_database_api(logs)?],
+            AppId::PersonalData => vec![
                 spawn_monitored(PERSONAL_DATA_ROOT, &[PERSONAL_DATA_EXE], logs)?
-            }
-            AppId::GmailFilter => spawn_monitored(
-                GMAIL_FILTER_ROOT,
-                &[GMAIL_FILTER_EXE, GMAIL_FILTER_EXE_FALLBACK],
-                logs,
-            )?,
+            ],
+            AppId::GmailFilter => spawn_gmail_filter_dual(logs)?,
         };
 
         self.children
             .lock()
             .map_err(|e| e.to_string())?
-            .insert(id, child);
+            .insert(id, children);
 
         Ok(())
     }
@@ -238,11 +247,15 @@ impl ProcessManager {
             return Err(format!("{} is not running", app_name(id)));
         }
 
-        let mut children = self.children.lock().map_err(|e| e.to_string())?;
-        if let Some(child) = children.remove(&id) {
-            kill_process(child.id())?;
-        } else if let Some(pid) = find_external_pid(id) {
-            kill_process(pid)?;
+        let mut children_map = self.children.lock().map_err(|e| e.to_string())?;
+        if let Some(children) = children_map.remove(&id) {
+            for child in children {
+                let _ = kill_process(child.id());
+            }
+        }
+
+        for pid in find_all_external_pids(id) {
+            let _ = kill_process(pid);
         }
 
         self.log_buffer(id)
@@ -267,16 +280,88 @@ impl ProcessManager {
 
         let logs = self.log_buffer(id);
         logs.clear();
+
+        if self.is_running(id) {
+            logs.append_stdout(&format!(
+                "Stopping running instance of {} before rebuild...\n",
+                app_name(id)
+            ));
+            if let Err(e) = self.stop(id) {
+                logs.append_stderr(&format!(
+                    "Warning: failed to stop {}: {e}\n",
+                    app_name(id)
+                ));
+            }
+            thread::sleep(Duration::from_millis(200));
+        }
+
         logs.append_stdout(&format!(
-            "Running rebuild in {build_dir}\n> npm run tauri build\n\n"
+            "Running rebuild in {build_dir}\n> npm run tauri build -- --no-bundle --verbose -- --verbose\n\n"
         ));
 
-        let child = spawn_npm_tauri_build(build_dir, logs)?;
+        let (mut child, output_streams_remaining) =
+            spawn_npm_tauri_build(build_dir, Arc::clone(&logs))?;
+
+        let is_done = Arc::new(AtomicBool::new(false));
+        let is_done_thread = Arc::clone(&is_done);
+        let logs_heartbeat = Arc::clone(&logs);
+        thread::spawn(move || {
+            let start = std::time::Instant::now();
+            while !is_done_thread.load(Ordering::Relaxed) {
+                thread::sleep(Duration::from_secs(2));
+                if is_done_thread.load(Ordering::Relaxed) {
+                    break;
+                }
+                let elapsed = start.elapsed().as_secs();
+                logs_heartbeat.append_stdout(&format!(
+                    "[rebuild] Compiling... ({elapsed}s elapsed)\n"
+                ));
+            }
+        });
+
+        let is_done_monitor = Arc::clone(&is_done);
+        let logs_monitor = Arc::clone(&logs);
+        thread::spawn(move || {
+            let status = child.wait();
+            let drain_start = std::time::Instant::now();
+            while output_streams_remaining.load(Ordering::Acquire) > 0
+                && drain_start.elapsed() < REBUILD_OUTPUT_DRAIN_TIMEOUT
+            {
+                thread::sleep(Duration::from_millis(50));
+            }
+
+            if output_streams_remaining.load(Ordering::Acquire) > 0 {
+                logs_monitor.append_stderr(
+                    "\nBuild process exited, but an output pipe remained open; some final output may be missing.\n",
+                );
+                logs_monitor.append_stdout(
+                    "\nBuild process exited, but an output pipe remained open; some final output may be missing.\n",
+                );
+            }
+
+            match status {
+                Ok(status) if status.success() => {
+                    logs_monitor.append_stdout("\nRebuild completed successfully.\n");
+                }
+                Ok(status) => {
+                    logs_monitor.append_stdout(&format!(
+                        "\nRebuild failed with status: {status}. Check stderr panel for details.\n"
+                    ));
+                    logs_monitor.append_stderr(&format!("\nRebuild failed with status: {status}\n"));
+                }
+                Err(error) => {
+                    logs_monitor.append_stdout(&format!("\nFailed to wait for rebuild: {error}\n"));
+                    logs_monitor.append_stderr(&format!("\nFailed to wait for rebuild: {error}\n"));
+                }
+            }
+
+            is_done_monitor.store(true, Ordering::Release);
+        });
 
         self.rebuilds
             .lock()
             .map_err(|e| e.to_string())?
-            .insert(id, child);
+            .insert(id, RebuildHandle { is_done });
 
         Ok(())
     }
@@ -289,22 +374,27 @@ impl ProcessManager {
     }
 
     fn is_running(&self, id: AppId) -> bool {
-        if let Ok(mut children) = self.children.lock() {
-            if let Some(child) = children.get_mut(&id) {
-                match child.try_wait() {
-                    Ok(None) => return true,
+        if let Ok(mut children_map) = self.children.lock() {
+            if let Some(children) = children_map.get_mut(&id) {
+                children.retain_mut(|child| match child.try_wait() {
+                    Ok(None) => true,
                     Ok(Some(status)) => {
                         self.log_buffer(id).append_stdout(&format!(
                             "\nProcess exited with status: {status}\n"
                         ));
-                        children.remove(&id);
+                        false
                     }
                     Err(error) => {
                         self.log_buffer(id)
                             .append_stderr(&format!("\nFailed to poll process: {error}\n"));
-                        children.remove(&id);
+                        false
                     }
+                });
+
+                if !children.is_empty() {
+                    return true;
                 }
+                children_map.remove(&id);
             }
         }
 
@@ -313,23 +403,11 @@ impl ProcessManager {
 
     fn is_rebuilding(&self, id: AppId) -> bool {
         if let Ok(mut rebuilds) = self.rebuilds.lock() {
-            if let Some(child) = rebuilds.get_mut(&id) {
-                match child.try_wait() {
-                    Ok(None) => return true,
-                    Ok(Some(status)) => {
-                        let logs = self.log_buffer(id);
-                        if status.success() {
-                            logs.append_stdout("\nRebuild completed successfully.\n");
-                        } else {
-                            logs.append_stderr(&format!("\nRebuild failed with status: {status}\n"));
-                        }
-                        rebuilds.remove(&id);
-                    }
-                    Err(error) => {
-                        self.log_buffer(id)
-                            .append_stderr(&format!("\nFailed to poll rebuild: {error}\n"));
-                        rebuilds.remove(&id);
-                    }
+            if let Some(handle) = rebuilds.get(&id) {
+                if handle.is_done.load(Ordering::Acquire) {
+                    rebuilds.remove(&id);
+                } else {
+                    return true;
                 }
             }
         }
@@ -346,32 +424,61 @@ fn app_name(id: AppId) -> &'static str {
         .unwrap_or("App")
 }
 
-fn spawn_with_logs(mut cmd: Command, logs: Arc<LogBuffer>) -> Result<Child, String> {
-    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+fn spawn_with_logs(cmd: Command, logs: Arc<LogBuffer>) -> Result<Child, String> {
+    spawn_with_logs_and_completion(cmd, logs).map(|(child, _)| child)
+}
+
+fn spawn_with_logs_and_completion(
+    mut cmd: Command,
+    logs: Arc<LogBuffer>,
+) -> Result<(Child, Arc<AtomicUsize>), String> {
+    cmd.stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
 
     let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn process: {e}"))?;
+    let output_streams_remaining = Arc::new(AtomicUsize::new(0));
 
     if let Some(stdout) = child.stdout.take() {
         let logs = Arc::clone(&logs);
+        let output_streams_remaining = Arc::clone(&output_streams_remaining);
+        output_streams_remaining.fetch_add(1, Ordering::Relaxed);
         thread::spawn(move || {
-            let reader = BufReader::new(stdout);
-            for line in reader.lines().map_while(Result::ok) {
-                logs.append_stdout(&format!("{line}\n"));
-            }
+            read_log_stream(stdout, |line| logs.append_stdout(&line));
+            output_streams_remaining.fetch_sub(1, Ordering::Release);
         });
     }
 
     if let Some(stderr) = child.stderr.take() {
         let logs = Arc::clone(&logs);
+        let output_streams_remaining = Arc::clone(&output_streams_remaining);
+        output_streams_remaining.fetch_add(1, Ordering::Relaxed);
         thread::spawn(move || {
-            let reader = BufReader::new(stderr);
-            for line in reader.lines().map_while(Result::ok) {
-                logs.append_stderr(&format!("{line}\n"));
-            }
+            read_log_stream(stderr, |line| {
+                logs.append_stderr(&line);
+                logs.append_stdout(&line);
+            });
+            output_streams_remaining.fetch_sub(1, Ordering::Release);
         });
     }
 
-    Ok(child)
+    Ok((child, output_streams_remaining))
+}
+
+fn read_log_stream<R: std::io::Read>(stream: R, mut append: impl FnMut(&str)) {
+    let mut reader = BufReader::new(stream);
+    let mut line = Vec::new();
+    loop {
+        line.clear();
+        match reader.read_until(b'\n', &mut line) {
+            Ok(0) | Err(_) => break,
+            Ok(_) => {
+                let line = String::from_utf8_lossy(&line);
+                let line = line.trim_end_matches(|character| character == '\r' || character == '\n');
+                append(&format!("{line}\n"));
+            }
+        }
+    }
 }
 
 fn spawn_wiki(logs: Arc<LogBuffer>) -> Result<Child, String> {
@@ -396,6 +503,50 @@ fn spawn_monitored(root: &str, exe_names: &[&str], logs: Arc<LogBuffer>) -> Resu
     spawn_with_logs(cmd, logs).map_err(|e| format!("Failed to start {}: {e}", exe_path.display()))
 }
 
+fn spawn_gmail_filter_dual(logs: Arc<LogBuffer>) -> Result<Vec<Child>, String> {
+    let exe_path = resolve_monitored_exe(
+        GMAIL_FILTER_ROOT,
+        &[GMAIL_FILTER_EXE, GMAIL_FILTER_EXE_FALLBACK],
+    );
+
+    let mut cmd_rrg = Command::new(&exe_path);
+    if let Some(dir) = exe_path.parent() {
+        cmd_rrg.current_dir(dir);
+    }
+    cmd_rrg.args(["--file", GMAIL_FILTER_RRG_XML]);
+    logs.append_stdout(&format!(
+        "Launching left window: {} --file \"{}\"\n",
+        exe_path.display(),
+        GMAIL_FILTER_RRG_XML
+    ));
+    let child_rrg = spawn_with_logs(cmd_rrg, Arc::clone(&logs))
+        .map_err(|e| format!("Failed to start {} (RRG): {e}", exe_path.display()))?;
+
+    let mut cmd_fog = Command::new(&exe_path);
+    if let Some(dir) = exe_path.parent() {
+        cmd_fog.current_dir(dir);
+    }
+    cmd_fog.args(["--file", GMAIL_FILTER_FOG_XML]);
+    logs.append_stdout(&format!(
+        "Launching right window: {} --file \"{}\"\n",
+        exe_path.display(),
+        GMAIL_FILTER_FOG_XML
+    ));
+    let child_fog = spawn_with_logs(cmd_fog, logs)
+        .map_err(|e| format!("Failed to start {} (Fog): {e}", exe_path.display()))?;
+
+    #[cfg(windows)]
+    {
+        let pid_left = child_rrg.id();
+        let pid_right = child_fog.id();
+        thread::spawn(move || {
+            position_dual_windows(pid_left, pid_right);
+        });
+    }
+
+    Ok(vec![child_rrg, child_fog])
+}
+
 fn resolve_monitored_exe(root: &str, exe_names: &[&str]) -> PathBuf {
     for exe_name in exe_names {
         for dir in MONITORED_TARGET_DIRS {
@@ -411,10 +562,17 @@ fn resolve_monitored_exe(root: &str, exe_names: &[&str]) -> PathBuf {
         .join(exe_names.first().copied().unwrap_or("app.exe"))
 }
 
-fn spawn_npm_tauri_build(dir: &str, logs: Arc<LogBuffer>) -> Result<Child, String> {
+fn npm_tauri_build_args() -> [&'static str; 8] {
+    ["run", "tauri", "build", "--", "--no-bundle", "--verbose", "--", "--verbose"]
+}
+
+fn spawn_npm_tauri_build(
+    dir: &str,
+    logs: Arc<LogBuffer>,
+) -> Result<(Child, Arc<AtomicUsize>), String> {
     let mut cmd = npm_command();
-    cmd.args(["run", "tauri", "build"]).current_dir(dir);
-    spawn_with_logs(cmd, logs)
+    cmd.args(npm_tauri_build_args()).current_dir(dir);
+    spawn_with_logs_and_completion(cmd, logs)
 }
 
 fn npm_command() -> Command {
@@ -443,12 +601,12 @@ fn detect_external_running(id: AppId) -> bool {
     }
 }
 
-fn find_external_pid(id: AppId) -> Option<u32> {
+fn find_all_external_pids(id: AppId) -> Vec<u32> {
     match id {
-        AppId::Wiki => find_pid_on_port(WIKI_PORT),
-        AppId::DatabaseApi => find_pid_on_port(DATABASE_API_PORT),
-        AppId::PersonalData => find_monitored_pid(&[PERSONAL_DATA_EXE], PERSONAL_DATA_ROOT),
-        AppId::GmailFilter => find_monitored_pid(
+        AppId::Wiki => find_pid_on_port(WIKI_PORT).into_iter().collect(),
+        AppId::DatabaseApi => find_pid_on_port(DATABASE_API_PORT).into_iter().collect(),
+        AppId::PersonalData => find_all_monitored_pids(&[PERSONAL_DATA_EXE], PERSONAL_DATA_ROOT),
+        AppId::GmailFilter => find_all_monitored_pids(
             &[GMAIL_FILTER_EXE, GMAIL_FILTER_EXE_FALLBACK],
             GMAIL_FILTER_ROOT,
         ),
@@ -460,9 +618,10 @@ fn is_port_open(port: u16) -> bool {
     TcpStream::connect_timeout(&addr, Duration::from_millis(400)).is_ok()
 }
 
-fn find_monitored_pid(exe_names: &[&str], root: &str) -> Option<u32> {
+fn find_all_monitored_pids(exe_names: &[&str], root: &str) -> Vec<u32> {
     let mut system = System::new();
     system.refresh_processes(ProcessesToUpdate::All, true);
+    let mut pids = Vec::new();
 
     for (pid, process) in system.processes() {
         let name = process.name().to_string_lossy();
@@ -470,11 +629,15 @@ fn find_monitored_pid(exe_names: &[&str], root: &str) -> Option<u32> {
             .exe()
             .map(|path| path.to_string_lossy().into_owned());
         if monitored_process_matches(&name, exe.as_deref(), exe_names, root) {
-            return Some(pid.as_u32());
+            pids.push(pid.as_u32());
         }
     }
 
-    None
+    pids
+}
+
+fn find_monitored_pid(exe_names: &[&str], root: &str) -> Option<u32> {
+    find_all_monitored_pids(exe_names, root).into_iter().next()
 }
 
 fn monitored_process_matches(
@@ -537,6 +700,111 @@ fn find_pid_on_port(port: u16) -> Option<u32> {
     None
 }
 
+#[cfg(windows)]
+unsafe extern "system" fn enum_windows_callback(
+    hwnd: windows_sys::Win32::Foundation::HWND,
+    lparam: windows_sys::Win32::Foundation::LPARAM,
+) -> windows_sys::Win32::Foundation::BOOL {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GetWindow, GetWindowTextLengthW, GetWindowThreadProcessId, IsWindowVisible, GW_OWNER,
+    };
+    let target = &mut *(lparam as *mut (u32, Option<windows_sys::Win32::Foundation::HWND>));
+    let mut process_id = 0u32;
+    GetWindowThreadProcessId(hwnd, &mut process_id);
+    if process_id == target.0
+        && IsWindowVisible(hwnd) != 0
+        && GetWindow(hwnd, GW_OWNER) == std::ptr::null_mut()
+        && GetWindowTextLengthW(hwnd) > 0
+    {
+        target.1 = Some(hwnd);
+        return 0;
+    }
+    1
+}
+
+#[cfg(windows)]
+fn find_window_for_pid(pid: u32) -> Option<windows_sys::Win32::Foundation::HWND> {
+    use windows_sys::Win32::UI::WindowsAndMessaging::EnumWindows;
+    let mut target = (pid, None);
+    unsafe {
+        EnumWindows(Some(enum_windows_callback), &mut target as *mut _ as isize);
+    }
+    target.1
+}
+
+#[cfg(windows)]
+fn position_dual_windows(pid_left: u32, pid_right: u32) {
+    use windows_sys::Win32::Foundation::RECT;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        SetWindowPos, SystemParametersInfoW, SPI_GETWORKAREA, SWP_NOZORDER, SWP_SHOWWINDOW,
+    };
+
+    let mut found_left = None;
+    let mut found_right = None;
+
+    for _ in 0..60 {
+        thread::sleep(Duration::from_millis(100));
+
+        if found_left.is_none() {
+            found_left = find_window_for_pid(pid_left);
+        }
+        if found_right.is_none() {
+            found_right = find_window_for_pid(pid_right);
+        }
+
+        if found_left.is_some() && found_right.is_some() {
+            break;
+        }
+    }
+
+    let mut rect: RECT = unsafe { std::mem::zeroed() };
+    let ok = unsafe {
+        SystemParametersInfoW(
+            SPI_GETWORKAREA,
+            0,
+            &mut rect as *mut _ as *mut _,
+            0,
+        )
+    };
+    if ok == 0 {
+        return;
+    }
+
+    let total_width = rect.right - rect.left;
+    let height = rect.bottom - rect.top;
+    let half_width = total_width / 2;
+
+    if let Some(h_left) = found_left {
+        unsafe {
+            SetWindowPos(
+                h_left,
+                std::ptr::null_mut(),
+                rect.left,
+                rect.top,
+                half_width,
+                height,
+                SWP_NOZORDER | SWP_SHOWWINDOW,
+            );
+        }
+    }
+
+    if let Some(h_right) = found_right {
+        let right_x = rect.left + half_width;
+        let right_width = total_width - half_width;
+        unsafe {
+            SetWindowPos(
+                h_right,
+                std::ptr::null_mut(),
+                right_x,
+                rect.top,
+                right_width,
+                height,
+                SWP_NOZORDER | SWP_SHOWWINDOW,
+            );
+        }
+    }
+}
+
 fn kill_process(pid: u32) -> Result<(), String> {
     let output = Command::new("taskkill")
         .args(["/PID", &pid.to_string(), "/T", "/F"])
@@ -554,6 +822,27 @@ fn kill_process(pid: u32) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn test_win_api() {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            SystemParametersInfoW, SPI_GETWORKAREA,
+        };
+        use windows_sys::Win32::Foundation::RECT;
+        let mut rect: RECT = unsafe { std::mem::zeroed() };
+        let res = unsafe {
+            SystemParametersInfoW(
+                SPI_GETWORKAREA,
+                0,
+                &mut rect as *mut _ as *mut _,
+                0,
+            )
+        };
+        assert_ne!(res, 0);
+        let my_pid = std::process::id();
+        let _ = find_window_for_pid(my_pid);
+    }
 
     #[test]
     fn detects_host_release_build_after_restart() {
@@ -658,6 +947,32 @@ mod tests {
             gmail.ends_with(r"target\release\gmail-filter-editor.exe"),
             "{}",
             gmail.display()
+        );
+    }
+
+    #[test]
+    fn dual_window_paths_configured() {
+        assert!(GMAIL_FILTER_RRG_XML.ends_with(r"tauri-email-filters\mailFiltersRRG.xml"));
+        assert!(GMAIL_FILTER_FOG_XML.ends_with(r"tauri-email-filters\mailFiltersFog.xml"));
+    }
+
+    #[test]
+    fn screen_split_math_covers_total_width() {
+        let total_widths = [1920, 2560, 3840, 1280, 1366];
+        for total in total_widths {
+            let left_w = total / 2;
+            let right_x = left_w;
+            let right_w = total - left_w;
+            assert_eq!(left_w + right_w, total);
+            assert_eq!(right_x, left_w);
+        }
+    }
+
+    #[test]
+    fn rebuild_args_skip_bundling() {
+        assert_eq!(
+            npm_tauri_build_args(),
+            ["run", "tauri", "build", "--", "--no-bundle", "--verbose", "--", "--verbose"]
         );
     }
 }

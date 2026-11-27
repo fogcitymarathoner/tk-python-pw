@@ -10,8 +10,11 @@ function enableTauri() {
   };
 }
 
+let mockSqliteEntries: any[] = [];
+
 function backend(content = SAMPLE_XML, extras: Record<string, unknown> = {}) {
-  invoke.mockImplementation(async (cmd: string, _args: Record<string, unknown> = {}) => {
+  mockSqliteEntries = [];
+  invoke.mockImplementation(async (cmd: string, args: Record<string, unknown> = {}) => {
     if (extras.fail && (extras.fail as Record<string, string>)[cmd]) {
       throw (extras.fail as Record<string, string>)[cmd];
     }
@@ -23,11 +26,41 @@ function backend(content = SAMPLE_XML, extras: Record<string, unknown> = {}) {
       case "write_filters_file":
       case "write_filters_to_path":
       case "write_report_file":
+      case "set_window_title":
         return;
       case "select_filters_file":
         return "selectPath" in extras ? extras.selectPath : "C:\\\\data\\\\custom.xml";
       case "select_save_path":
         return "savePath" in extras ? extras.savePath : "C:\\\\data\\\\saved.xml";
+      case "select_eml_file":
+        return "emlPath" in extras ? extras.emlPath : "C:\\\\data\\\\sample.eml";
+      case "read_eml_file":
+        return (
+          extras.emlContent ??
+          "From: alice@example.com\nTo: bob@example.com\nSubject: Invoice 2026\n\nSample body"
+        );
+      case "get_initial_file_path":
+        return "initialFile" in extras ? extras.initialFile : null;
+      case "populate_sqlite":
+        mockSqliteEntries = (args.entries as any[]) || [];
+        return "mailFilters.db";
+      case "export_sqlite": {
+        // Detect duplicates via mock SQLite logic
+        const seen = new Set<string>();
+        for (const entry of mockSqliteEntries) {
+          const parts: string[] = [];
+          for (const k of Object.keys(entry.properties || {}).sort()) {
+            const v = entry.properties[k]?.trim();
+            if (v) parts.push(`${k}=${v}`);
+          }
+          const hash = parts.join(";");
+          if (seen.has(hash)) {
+            throw "Duplicate filters detected! All filters must be distinct to save.";
+          }
+          seen.add(hash);
+        }
+        return mockSqliteEntries;
+      }
       default:
         throw new Error(`unknown ${cmd}`);
     }
@@ -60,11 +93,12 @@ async function renderTauri(content = SAMPLE_XML, extras: Record<string, unknown>
 
 describe("App loading", () => {
   it("loads native mailFilters.xml in Tauri", async () => {
-    await renderTauri();
+    const { user } = await renderTauri();
     expectStatus("Natively loaded mailFilters.xml");
     expect(screen.getByText("From: alice@example.com")).toBeInTheDocument();
     expect(screen.getByText("Desktop App")).toBeInTheDocument();
-    expect(screen.getByText("Filter Configuration")).toBeInTheDocument();
+    await user.click(filterCard(1));
+    expect(screen.getByText("Filter #1 Configuration")).toBeInTheDocument();
     expect(screen.queryByText("Scanning filesystem...")).not.toBeInTheDocument();
   });
 
@@ -128,6 +162,7 @@ describe("App loading", () => {
 describe("App editing and file actions", () => {
   it("edits fields, searches, switches sort view, and clears search", async () => {
     const { user } = await renderTauri();
+    await user.click(filterCard(1));
     await user.clear(screen.getByPlaceholderText(/Sender address/));
     await user.type(screen.getByPlaceholderText(/Sender address/), "team@corp.com");
     expectStatus("Unsaved changes present");
@@ -149,6 +184,9 @@ describe("App editing and file actions", () => {
     await user.click(screen.getByLabelText("Never mark as important"));
     await user.click(screen.getByLabelText("Delete it (Trash)"));
 
+    // Close the modal before searching
+    await user.click(screen.getByRole("button", { name: /Done/ }));
+
     await user.type(screen.getByPlaceholderText(/Search filters/), "invoice");
     expect(screen.queryByText("From: team@corp.com")).not.toBeInTheDocument();
     expect(screen.getByText("Subj: Invoice 2026")).toBeInTheDocument();
@@ -156,13 +194,14 @@ describe("App editing and file actions", () => {
     expect(screen.getByPlaceholderText(/Search filters/)).toHaveValue("");
 
     await user.click(screen.getByRole("button", { name: /Compact Sort/ }));
-    expect(screen.queryByText("Filter Configuration")).not.toBeInTheDocument();
     expect(screen.getByText("Fwd: ops@corp.com")).toBeInTheDocument();
     expect(screen.getAllByText("Archive").length).toBeGreaterThan(0);
     expect(screen.getAllByText("No-Important").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Trash").length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: /Edit Details/ }));
-    expect(screen.getByText("Filter Configuration")).toBeInTheDocument();
+
+    await user.click(filterCard(1));
+    expect(screen.getByText("Filter #1 Configuration")).toBeInTheDocument();
   });
 
   it("adds, duplicates, reorders, and deletes filters", async () => {
@@ -214,7 +253,9 @@ describe("App editing and file actions", () => {
 
   it("saves to the default file and shows a toast", async () => {
     const { user } = await renderTauri();
+    await user.click(filterCard(1));
     await user.type(screen.getByPlaceholderText(/Sender address/), "test@example.com");
+    await user.click(screen.getByRole("button", { name: /Done/ }));
     await user.click(screen.getByRole("button", { name: /Save Changes/ }));
     await expectStatusSoon(/Successfully saved mailFilters.xml/);
     expect(screen.getByText(/Written to mailFilters.xml/)).toBeInTheDocument();
@@ -223,7 +264,9 @@ describe("App editing and file actions", () => {
   it("saves a previously opened custom path", async () => {
     localStorage.setItem("tauri_email_filters_current_path", "D:\\\\mail\\\\work.xml");
     const { user } = await renderTauri();
+    await user.click(filterCard(1));
     await user.type(screen.getByPlaceholderText(/Sender address/), "test@example.com");
+    await user.click(screen.getByRole("button", { name: /Done/ }));
     await user.click(screen.getByRole("button", { name: /Save Changes/ }));
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith(
@@ -242,7 +285,9 @@ describe("App editing and file actions", () => {
     });
     await expectStatusSoon("Loaded custom.xml");
 
+    await user.click(filterCard(1));
     await user.type(screen.getByPlaceholderText(/Sender address/), "test@example.com");
+    await user.click(screen.getByRole("button", { name: /Done/ }));
     await user.click(screen.getByRole("button", { name: /Save As/ }));
     await expectStatusSoon(/Successfully saved as saved.xml/);
 
@@ -257,16 +302,23 @@ describe("App editing and file actions", () => {
 
   it("handles cancelled file dialogs and save failures", async () => {
     const { user } = await renderTauri();
-    invoke.mockImplementation(async (cmd: string) => {
+    invoke.mockImplementation(async (cmd: string, args: Record<string, unknown> = {}) => {
       if (cmd === "select_filters_file") return null;
       if (cmd === "select_save_path") return null;
       if (cmd === "write_filters_file") throw "denied";
       if (cmd === "read_filters_file") return SAMPLE_XML;
+      if (cmd === "populate_sqlite") {
+        mockSqliteEntries = (args.entries as any[]) || [];
+        return "mailFilters.db";
+      }
+      if (cmd === "export_sqlite") return mockSqliteEntries;
       return SAMPLE_XML;
     });
     await user.click(screen.getByRole("button", { name: /Open File/ }));
     await expectStatusSoon("Natively loaded mailFilters.xml");
+    await user.click(filterCard(1));
     await user.type(screen.getByPlaceholderText(/Sender address/), "test@example.com");
+    await user.click(screen.getByRole("button", { name: /Done/ }));
     await user.click(screen.getByRole("button", { name: /Save As/ }));
     await expectStatusSoon("Natively loaded mailFilters.xml");
     await user.click(screen.getByRole("button", { name: /Save Changes/ }));
@@ -281,7 +333,9 @@ describe("App editing and file actions", () => {
 
   it("reports a save-as error", async () => {
     const { user } = await renderTauri(SAMPLE_XML, { fail: { select_save_path: "disk full" } });
+    await user.click(filterCard(1));
     await user.type(screen.getByPlaceholderText(/Sender address/), "test@example.com");
+    await user.click(screen.getByRole("button", { name: /Done/ }));
     await user.click(screen.getByRole("button", { name: /Save As/ }));
     await expectStatusSoon("Failed to save: disk full");
   });
@@ -325,13 +379,17 @@ describe("App editing and file actions", () => {
     await user.upload(input, file);
     await expectStatusSoon("Loaded mailFilters.xml");
 
+    await user.click(filterCard(1));
     await user.type(screen.getByPlaceholderText(/Sender address/), "test@example.com");
+    await user.click(screen.getByRole("button", { name: /Done/ }));
 
     const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     await user.click(screen.getByRole("button", { name: /Save Changes/ }));
     await expectStatusSoon("File downloaded successfully!");
 
+    await user.click(filterCard(1));
     await user.type(screen.getByPlaceholderText(/Sender address/), "test2@example.com");
+    await user.click(screen.getByRole("button", { name: /Done/ }));
     await user.click(screen.getByRole("button", { name: /Save As/ }));
     await user.click(screen.getByRole("button", { name: /Copy Report/ }));
     clickSpy.mockRestore();
@@ -353,6 +411,7 @@ describe("App editing and file actions", () => {
     expect(saveAsBtn).toBeDisabled();
 
     // 2. Making a change enables Save and Save As
+    await user.click(filterCard(1));
     const senderInput = screen.getByPlaceholderText(/Sender address/);
     await user.clear(senderInput);
     await user.type(senderInput, "new-sender@domain.com");
@@ -375,6 +434,7 @@ describe("App editing and file actions", () => {
     expect(saveBtn).toBeEnabled();
     expect(saveAsBtn).toBeEnabled();
 
+    await user.click(screen.getByRole("button", { name: /Done/ }));
     await user.click(saveBtn);
     await expectStatusSoon(/Successfully saved mailFilters.xml/);
 
@@ -405,7 +465,6 @@ describe("App editing and file actions", () => {
     const { user } = await renderTauri();
     const scrollContainer = document.querySelector(".entries-list-scroll") as HTMLElement;
     fireEvent.click(scrollContainer);
-    expect(screen.getByText("No Filter Selected")).toBeInTheDocument();
 
     (window.prompt as jest.Mock).mockReturnValueOnce("2");
     await user.click(screen.getByRole("button", { name: /Add New Filter/ }));
@@ -468,11 +527,144 @@ describe("App editing and file actions", () => {
     expect(document.querySelector(".file-path-badge")).toBeNull();
 
     // Modify a property to trigger unsaved changes
+    await user.click(filterCard(1));
     await user.type(screen.getByPlaceholderText(/Sender address/), "user@example.com");
 
     // Unified badge should now show both the pin filename and unsaved changes status
     expect(statusBadge?.textContent).toContain("📍 mailFiltersFog.xml");
     expect(statusBadge?.textContent).toContain("Unsaved changes present");
     expect(statusBadge?.classList.contains("warning")).toBe(true);
+  });
+
+  it("detects duplicate filters on save, blocks writing XML, and shows duplicate badge", async () => {
+    const { user } = await renderTauri();
+
+    // Duplicate filter 1 so that we have an exact duplicate
+    await user.click(within(filterCard(1)).getByTitle("Duplicate Filter"));
+    expect(screen.getAllByText(/Duplicate Filter/).length).toBeGreaterThan(0);
+
+    const saveBtn = screen.getByRole("button", { name: /Save Changes/ });
+    expect(saveBtn).toBeEnabled();
+
+    // Attempting to save should trigger duplicate detection from SQLite export
+    await user.click(saveBtn);
+    await expectStatusSoon(/Duplicate filters detected! All filters must be distinct to save/);
+    expect(invoke).not.toHaveBeenCalledWith("write_filters_file", expect.anything());
+
+    // Resolve the duplicate by changing a property
+    await user.click(filterCard(2));
+    const senderInput = screen.getByPlaceholderText(/Sender address/);
+    await user.clear(senderInput);
+    await user.type(senderInput, "distinct-sender@example.com");
+
+    // The duplicate badge should be gone
+    expect(document.querySelector(".badge-duplicate")).toBeNull();
+
+    // Save should now succeed and export from SQLite
+    await user.click(saveBtn);
+    await expectStatusSoon(/Successfully saved mailFilters\.xml/);
+    expect(invoke).toHaveBeenCalledWith("write_filters_file", expect.anything());
+  });
+
+  it("detects duplicate filters in browser preview mode and prevents download", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const file = new File([SAMPLE_XML], "mailFilters.xml", { type: "text/xml" });
+    const input = document.getElementById("browser-file-upload") as HTMLInputElement;
+    await user.upload(input, file);
+    await expectStatusSoon("Loaded mailFilters.xml");
+
+    // Duplicate filter 1
+    await user.click(within(filterCard(1)).getByTitle("Duplicate Filter"));
+    expect(document.querySelectorAll(".badge-duplicate").length).toBeGreaterThan(0);
+
+    const saveBtn = screen.getByRole("button", { name: /Save Changes/ });
+    await user.click(saveBtn);
+    await expectStatusSoon(/Duplicate filters detected! All filters must be distinct to save/);
+  });
+
+  it("opens EML tester modal, loads an .eml file, and reports matching filters", async () => {
+    const { user } = await renderTauri();
+
+    // Click the Test Email button to open the modal
+    const testBtn = screen.getByRole("button", { name: /Test Email/ });
+    await user.click(testBtn);
+
+    expect(screen.getByText("EML Filter Tester")).toBeInTheDocument();
+
+    // Click Select .eml File
+    const selectFileBtn = screen.getByRole("button", { name: /Select \.eml File/ });
+    await user.click(selectFileBtn);
+
+    // Expect email details to be rendered
+    await waitFor(() => {
+      expect(screen.getByText("alice@example.com")).toBeInTheDocument();
+      expect(screen.getByText("Invoice 2026")).toBeInTheDocument();
+    });
+
+    // Both filters in SAMPLE_XML match this email
+    expect(screen.getByText(/2 of 2 filters match this email/)).toBeInTheDocument();
+
+    // Verify cumulative action badges
+    expect(screen.getAllByText("Label: Work").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Archive").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Trash").length).toBeGreaterThan(0);
+
+    // Jump to Filter #2
+    const jumpBtns = screen.getAllByRole("button", { name: /Jump to Filter/ });
+    expect(jumpBtns.length).toBe(2);
+    await user.click(jumpBtns[1]);
+
+    // Modal should close and Filter #2 should be selected
+    expect(screen.queryByText("EML Filter Tester")).not.toBeInTheDocument();
+  });
+
+  it("loads CLI specified filter file on startup and sets active path", async () => {
+    const { user: _ } = await renderTauri(SAMPLE_XML, {
+      initialFile: "C:\\data\\clientA.xml",
+      readContent: SAMPLE_XML,
+    });
+
+    await expectStatusSoon(/Loaded clientA\.xml/);
+    const statusBadge = document.querySelector(".status-badge");
+    expect(statusBadge?.textContent).toContain("clientA.xml");
+  });
+
+  it("updates top title bar and window title to Filter XXX for mailFiltersXXX.xml", async () => {
+    const { user: _ } = await renderTauri(SAMPLE_XML, {
+      initialFile: "C:\\data\\mailFiltersFog.xml",
+      readContent: SAMPLE_XML,
+    });
+
+    await waitFor(() => {
+      const heading = screen.getByRole("heading", { level: 1 });
+      expect(heading.textContent).toBe("Filter Fog");
+      expect(document.title).toBe("Filter Fog");
+    });
+  });
+
+  it("opens centered edit modal popup on card or edit button click, edits fields, and closes with Done or Escape", async () => {
+    const { user } = await renderTauri();
+
+    // Modal is initially not open
+    expect(screen.queryByText("Filter #1 Configuration")).not.toBeInTheDocument();
+
+    // Click filter card to open centered edit modal popup
+    await user.click(filterCard(1));
+    expect(screen.getByText("Filter #1 Configuration")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Sender address/)).toHaveValue("alice@example.com");
+
+    // Close via Done button
+    await user.click(screen.getByRole("button", { name: /Done/ }));
+    expect(screen.queryByText("Filter #1 Configuration")).not.toBeInTheDocument();
+
+    // Click edit icon button on card 2 to open modal
+    const editBtn = within(filterCard(2)).getByTitle("Edit Filter");
+    await user.click(editBtn);
+    expect(screen.getByText("Filter #2 Configuration")).toBeInTheDocument();
+
+    // Dismiss with Escape key
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByText("Filter #2 Configuration")).not.toBeInTheDocument();
   });
 });

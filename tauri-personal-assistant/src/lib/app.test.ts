@@ -176,6 +176,10 @@ describe("updateLogs and showError", () => {
     expect(stdout).toHaveTextContent("out");
     expect(card.querySelector(".log-stderr")).toHaveTextContent("err");
     expect(stdout.scrollTop).toBe(0);
+
+    updateLogs(card, { stdout: "out2", stderr: "err2" }, true);
+    expect(stdout).toHaveTextContent("out2");
+    expect(stdout.scrollTop).toBe(200);
   });
 
   it("shows and hides an error, and ignores a missing card", () => {
