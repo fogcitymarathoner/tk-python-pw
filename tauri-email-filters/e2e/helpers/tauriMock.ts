@@ -3,6 +3,9 @@ export type TauriSeed = {
   fail?: Record<string, string>;
   selectPath?: string | null;
   savePath?: string | null;
+  emlPath?: string | null;
+  emlContent?: string | null;
+  initialFile?: string | null;
 };
 
 export const SAMPLE_XML = `<?xml version='1.0' encoding='UTF-8'?>
@@ -39,6 +42,7 @@ export function installTauriMock() {
     (window as unknown as { __TAURI_MOCK_SEED__?: TauriSeed }).__TAURI_MOCK_SEED__ ?? {};
   let xml = seed.xml ?? "";
   const fail = { ...(seed.fail ?? {}) };
+  let mockSqliteEntries: unknown[] = [];
 
   const internals = {
     invoke: async (cmd: string, args: Record<string, unknown> = {}) => {
@@ -52,11 +56,26 @@ export function installTauriMock() {
           xml = String(args.content ?? xml);
           return;
         case "write_report_file":
+        case "set_window_title":
           return;
         case "select_filters_file":
           return seed.selectPath === undefined ? "C:\\\\data\\\\custom.xml" : seed.selectPath;
         case "select_save_path":
           return seed.savePath === undefined ? "C:\\\\data\\\\saved.xml" : seed.savePath;
+        case "select_eml_file":
+          return seed.emlPath === undefined ? "C:\\\\data\\\\sample.eml" : seed.emlPath;
+        case "read_eml_file":
+          return (
+            seed.emlContent ??
+            "From: alice@example.com\nTo: bob@example.com\nSubject: Invoice 2026\n\nSample body"
+          );
+        case "get_initial_file_path":
+          return seed.initialFile ?? null;
+        case "populate_sqlite":
+          mockSqliteEntries = (args.entries as unknown[]) || [];
+          return "mailFilters.db";
+        case "export_sqlite":
+          return mockSqliteEntries;
         default:
           throw new Error(`Unknown command: ${cmd}`);
       }

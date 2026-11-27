@@ -7,13 +7,16 @@ test("loads native filters and shows the editor", async ({ page }) => {
   await expect(page.locator(".status-badge")).toContainText("Natively loaded mailFilters.xml");
   await expect(page.getByText("From: alice@example.com")).toBeVisible();
   await expect(page.getByText("Desktop App")).toBeVisible();
-  await expect(page.getByText("Filter Configuration")).toBeVisible();
+  await page.locator("#filter-card-0").click();
+  await expect(page.getByText(/Filter #1 Configuration/)).toBeVisible();
   await expect(page.getByText("Active Filters:")).toContainText("2");
 });
 
 test("edits a filter, searches, and toggles compact sort", async ({ page }) => {
   await gotoApp(page);
+  await page.locator("#filter-card-0").click();
   await page.getByPlaceholder("Sender address, domain, or query...").fill("team@corp.com");
+  await page.getByRole("button", { name: "Done" }).click();
   await expect(page.locator(".status-badge")).toContainText("Unsaved changes present");
   await expect(page.getByText("From: team@corp.com")).toBeVisible();
 
@@ -23,18 +26,20 @@ test("edits a filter, searches, and toggles compact sort", async ({ page }) => {
   await page.getByTitle("Clear search").click();
 
   await page.getByRole("button", { name: /Compact Sort/ }).click();
-  await expect(page.getByText("Filter Configuration")).toHaveCount(0);
+  await expect(page.locator(".list-panel")).toHaveClass(/sort-view/);
   await page.getByRole("button", { name: /Edit Details/ }).click();
-  await expect(page.getByText("Filter Configuration")).toBeVisible();
+  await expect(page.locator(".list-panel")).toHaveClass(/edit-view/);
 });
 
 test("adds, duplicates, reorders, and deletes a filter", async ({ page }) => {
   await gotoApp(page);
   await page.getByRole("button", { name: /Add New Filter/ }).click();
   await expect(page.getByText("Active Filters:")).toContainText("3");
+  await page.getByRole("button", { name: "Done" }).click();
 
   await page.getByTitle("Duplicate Filter").first().click();
   await expect(page.getByText("Active Filters:")).toContainText("4");
+  await page.getByRole("button", { name: "Done" }).click();
 
   await page.getByTitle("Move Down").first().click();
   page.once("dialog", (dialog) => void dialog.accept());
@@ -47,7 +52,9 @@ test("saves changes, saves as, and copies a report", async ({ page }) => {
   await expect(page.getByRole("button", { name: /Save Changes/ })).toBeDisabled();
   await expect(page.getByRole("button", { name: /Save As/ })).toBeDisabled();
 
+  await page.locator("#filter-card-0").click();
   await page.getByPlaceholder("Sender address, domain, or query...").fill("team@corp.com");
+  await page.getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("button", { name: /Save Changes/ })).toBeEnabled();
   await expect(page.getByRole("button", { name: /Save As/ })).toBeEnabled();
 
@@ -55,7 +62,9 @@ test("saves changes, saves as, and copies a report", async ({ page }) => {
   await expect(page.locator(".status-badge")).toContainText("Successfully saved mailFilters.xml");
   await expect(page.getByText(/Written to mailFilters.xml/)).toBeVisible();
 
+  await page.locator("#filter-card-0").click();
   await page.getByPlaceholder("Sender address, domain, or query...").fill("team2@corp.com");
+  await page.getByRole("button", { name: "Done" }).click();
   await page.getByRole("button", { name: /Save As/ }).click();
   await expect(page.locator(".status-badge")).toContainText("Successfully saved as saved.xml");
 
@@ -85,7 +94,7 @@ test("cancels an open-file dialog without changing the loaded filters", async ({
 
 test("shows web preview mode without a native backend", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Gmail Filters Editor" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.locator(".status-badge")).toContainText("web preview mode");
   await expect(page.getByText("Web Browser")).toBeVisible();
   await expect(page.getByText("No Active Filter Data Loaded")).toBeVisible();
@@ -96,7 +105,9 @@ test("unifies active file and unsaved status for custom files", async ({ page })
   await page.getByRole("button", { name: /Open File/ }).click();
   await expect(page.locator(".status-badge")).toContainText("📍 custom.xml");
 
+  await page.locator("#filter-card-0").click();
   await page.getByPlaceholder("Sender address, domain, or query...").fill("user@example.com");
+  await page.getByRole("button", { name: "Done" }).click();
   await expect(page.locator(".status-badge")).toContainText("📍 custom.xml");
   await expect(page.locator(".status-badge")).toContainText("Unsaved changes present");
   await expect(page.locator(".file-path-badge")).toHaveCount(0);

@@ -7,5 +7,5 @@ export async function gotoApp(page: Page, seed: TauriSeed = {}) {
   }, { xml: SAMPLE_XML, ...seed });
   await page.addInitScript(installTauriMock);
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Gmail Filters Editor" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 }
